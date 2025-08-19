@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog Post Generator</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <h1>Blog Post Generator with Markdown Preview</h1>
+
+  <form id="postForm">
+    <label for="title">Title:</label><br>
+    <input type="text" id="title" required><br><br>
+
+    <label for="youtubeLink">YouTube Link:</label><br>
+    <input type="url" id="youtubeLink"><br><br>
+
+    <label>Featured Image:</label><br>
+    <input type="file" id="featuredImageFile" accept="image/*"><br>
+    <input type="url" id="featuredImageURL" placeholder="Or paste a direct image URL"><br>
+    <div class="image-note">You can select a local file or paste a URL from online.</div>
+    <div class="image-buttons">
+      <button type="button" id="clearImage">Clear Featured Image</button>
+    </div><br>
+
+    <label for="date">Date:</label><br>
+    <input type="text" id="date" required><br><br>
+
+    <label for="profile">Profile Name:</label><br>
+    <input type="text" id="profile" value="rioforce"><br><br>
+
+    <div class="container">
+      <div class="flex-half">
+        <label for="markdownContent">Content (Markdown):</label><br>
+        <textarea id="markdownContent" placeholder="Type your Markdown content here..." required></textarea>
+        <div class="cheat-sheet">
+          <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
+          <div class="cheat-sheet-content" id="cheatSheet">
+# Headings
+# H1
+## H2
+### H3
+
+**Bold**: **bold**
+*Italic*: *italic*
+***Bold + Italic***: ***text***
+
+Lists:
+- Unordered: - item or * item
+- Ordered: 1. item
+
+Links: [text](url)
+Images: ![alt text](url)
+
+Blockquote: > quote
+Inline code: `code`
+Code block:
+\`\`\`
+code here
+\`\`\`
+          </div>
+        </div>
+      </div>
+      <div class="flex-half">
+        <label>Preview:</label>
+        <div id="preview" class="preview"></div>
+      </div>
+    </div><br>
+
+    <button type="submit">Generate ZIP</button>
+  </form>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
