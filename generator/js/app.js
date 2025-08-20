@@ -1,148 +1,231 @@
-const form = document.getElementById('postForm');
+// References
+const postForm = document.getElementById('postForm');
+const titleInput = document.getElementById('title');
+const youtubeLinkInput = document.getElementById('youtubeLink');
+const featuredImageFileInput = document.getElementById('featuredImageFile');
+const featuredImageURLInput = document.getElementById('featuredImageURL');
+const dateInput = document.getElementById('date');
+const profileInput = document.getElementById('profile');
 const markdownContent = document.getElementById('markdownContent');
 const preview = document.getElementById('preview');
-const cheatButton = document.getElementById('toggleCheatSheet');
-const cheatSheet = document.getElementById('cheatSheet');
-const featuredImageFile = document.getElementById('featuredImageFile');
-const featuredImageURL = document.getElementById('featuredImageURL');
 const clearImageBtn = document.getElementById('clearImage');
 
-let featuredImageDataUrl = "";
-let featuredImageName = "";
+let featuredImageDataUrl = null;
+let featuredImageBlob = null;
 
-// Autofill date
-const dateInput = document.getElementById('date');
-const today = new Date();
-const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-dateInput.value = `${monthNames[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+// Store additional markdown images
+let extraImages = [];
+const extraImageURLs = new Map(); // For preview object URLs
 
-// Update preview
-function updatePreview() {
-  const mdText = markdownContent.value;
-  const featuredHTML = featuredImageDataUrl ? `<div class="preview-featured"><img src="${featuredImageDataUrl}" alt="Featured Image"></div>` : '';
-  preview.innerHTML = featuredHTML + marked.parse(mdText, { gfm: true, breaks: true });
+// Auto-fill date
+dateInput.value = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+// --- Sanitize filenames ---
+function sanitizeFilename(name) {
+  return name
+    .trim()                        // remove leading/trailing spaces
+    .replace(/\s+/g, '-')          // convert spaces to dashes
+    .replace(/[^a-zA-Z0-9\-.]/g, '') // remove any other special chars except dot/dash
+    .toLowerCase();
 }
 
-// Debounce 250ms
-let debounceTimeout;
+// Handle featured image file select
+featuredImageFileInput.addEventListener('change', () => {
+  const file = featuredImageFileInput.files[0];
+  if (file) {
+    const sanitizedName = sanitizeFilename(file.name);
+    const reader = new FileReader();
+    reader.onload = e => {
+      featuredImageDataUrl = e.target.result;
+      featuredImageBlob = new File([file], sanitizedName, { type: file.type });
+      updatePreview();
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+// Handle featured image URL input
+featuredImageURLInput.addEventListener('input', async () => {
+  const url = featuredImageURLInput.value.trim();
+  if (!url) return;
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const originalName = url.split('/').pop().split('?')[0] || 'featuredimage.jpg';
+    const sanitizedName = sanitizeFilename(originalName);
+    featuredImageBlob = new File([blob], sanitizedName, { type: blob.type });
+    featuredImageDataUrl = URL.createObjectURL(featuredImageBlob);
+    updatePreview();
+  } catch (err) {
+    console.error('Failed to load image from URL', err);
+  }
+});
+
+
+// Clear featured image
+clearImageBtn.addEventListener('click', () => {
+  featuredImageDataUrl = null;
+  featuredImageBlob = null;
+  featuredImageFileInput.value = '';
+  featuredImageURLInput.value = '';
+  updatePreview();
+});
+
+// Escape regex helper
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Rewrite markdown to show object URLs for local images
+function rewriteMarkdownForPreview(mdText) {
+  if (!extraImages.length) return mdText;
+  let rewritten = mdText;
+  for (const { name, blob } of extraImages) {
+    if (!extraImageURLs.has(name)) {
+      extraImageURLs.set(name, URL.createObjectURL(blob));
+    }
+    const url = extraImageURLs.get(name);
+    const pattern = new RegExp(`\\]\\(${escapeRegExp(name)}\\)`, 'g');
+    rewritten = rewritten.replace(pattern, `](${url})`);
+  }
+  return rewritten;
+}
+
+// Update markdown preview
+function updatePreview() {
+  const rawMd = markdownContent.value;
+  const mdForPreview = rewriteMarkdownForPreview(rawMd);
+
+  const featuredHTML = featuredImageDataUrl
+    ? `<div class="preview-featured"><img src="${featuredImageDataUrl}" alt="Featured Image"></div>`
+    : '';
+
+  preview.innerHTML = featuredHTML + marked.parse(mdForPreview, { gfm: true, breaks: true });
+}
+
+// Debounce preview updates
+let debounceTimer;
 function debouncePreview() {
-  clearTimeout(debounceTimeout);
-  debounceTimeout = setTimeout(updatePreview, 250);
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(updatePreview, 250);
 }
 markdownContent.addEventListener('input', debouncePreview);
 
-// Handle local file
-featuredImageFile.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  featuredImageName = file.name;
-  const reader = new FileReader();
-  reader.onload = function(evt) {
-    featuredImageDataUrl = evt.target.result;
-    featuredImageURL.value = "";
+// Cheat sheet toggle
+document.getElementById('toggleCheatSheet').addEventListener('click', () => {
+  const sheet = document.getElementById('cheatSheet');
+  sheet.style.display = sheet.style.display === 'none' ? 'block' : 'none';
+});
+
+// --- Add Image tool ---
+document.getElementById('addImageBtn').addEventListener('click', () => {
+  const form = document.getElementById('imageInsertForm');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+});
+
+function sanitizeFilename(name) {
+  return name
+    .trim()                        // remove leading/trailing spaces
+    .replace(/\s+/g, '-')          // convert spaces to dashes
+    .replace(/[^a-zA-Z0-9\-.]/g, '') // remove any other special chars except dot/dash
+    .toLowerCase();
+}
+
+document.getElementById('insertImageMarkdown').addEventListener('click', async () => {
+  const fileInput = document.getElementById('mdImageFile');
+  const urlInput = document.getElementById('mdImageURL');
+  const textarea = document.getElementById('markdownContent');
+
+  function insertAtCursor(text) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+    textarea.value = before + text + after;
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    textarea.focus();
     debouncePreview();
-  };
-  reader.readAsDataURL(file);
-});
+  }
 
-// Handle URL input
-featuredImageURL.addEventListener('input', () => {
-  const url = featuredImageURL.value.trim();
-  if (!url) {
-    if (!featuredImageFile.files[0]) {
-      featuredImageDataUrl = "";
-      featuredImageName = "";
-      debouncePreview();
+  function altFrom(nameOrUrl) {
+    const base = nameOrUrl.split('/').pop().split('#')[0].split('?')[0];
+    return (base || 'image').replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ');
+  }
+
+  if (fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    const sanitizedName = sanitizeFilename(file.name);
+    extraImages.push({ name: sanitizedName, blob: file });
+    insertAtCursor(`![${altFrom(file.name)}](${sanitizedName})`);
+  } else if (urlInput.value.trim()) {
+    const url = urlInput.value.trim();
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const originalName = url.split('/').pop().split('?')[0] || 'image.jpg';
+      const sanitizedName = sanitizeFilename(originalName);
+      extraImages.push({ name: sanitizedName, blob });
+      insertAtCursor(`![${altFrom(originalName)}](${sanitizedName})`);
+    } catch (err) {
+      alert('Failed to fetch image from URL.');
     }
-    return;
   }
-  featuredImageName = url.split('/').pop().split('?')[0] || "online_image.jpg";
-  featuredImageDataUrl = url;
-  if (featuredImageFile.files[0]) featuredImageFile.value = "";
-  debouncePreview();
+
+  fileInput.value = '';
+  urlInput.value = '';
+  document.getElementById('imageInsertForm').style.display = 'none';
 });
 
-// Clear image
-clearImageBtn.addEventListener('click', () => {
-  featuredImageFile.value = "";
-  featuredImageURL.value = "";
-  featuredImageDataUrl = "";
-  featuredImageName = "";
-  debouncePreview();
-});
 
-// Initialize preview
-updatePreview();
-
-// Toggle cheat sheet
-cheatButton.addEventListener('click', () => {
-  if (cheatSheet.style.display === "block") {
-    cheatSheet.style.display = "none";
-    cheatButton.textContent = "Show Markdown Cheat Sheet";
-  } else {
-    cheatSheet.style.display = "block";
-    cheatButton.textContent = "Hide Markdown Cheat Sheet";
-  }
-});
-
-// Generate ZIP
-form.addEventListener('submit', async (e) => {
+// --- Form submit ---
+postForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const title = document.getElementById('title').value;
-  const youtubeLink = document.getElementById('youtubeLink').value;
-  const date = document.getElementById('date').value;
-  const profile = document.getElementById('profile').value;
-  const mdContent = markdownContent.value;
-
-  const postInfo = {
-    title,
-    youtubeLink,
-    featuredImage: featuredImageName ? `./${featuredImageName}` : "",
-    date,
-    content: "content.md",
-    profile
+  const postinfo = {
+    title: titleInput.value,
+    youtubeLink: youtubeLinkInput.value,
+    featuredImage: featuredImageBlob ? `./${featuredImageBlob.name || 'featuredimage.jpg'}` : '',
+    date: dateInput.value,
+    content: 'content.md',
+    profile: profileInput.value
   };
 
   const zip = new JSZip();
-  zip.file("postinfo.json", JSON.stringify(postInfo, null, 2));
-  zip.file("content.md", mdContent);
+  zip.file('postinfo.json', JSON.stringify(postinfo, null, 4));
+  zip.file('content.md', markdownContent.value);
 
-  // Add local file
-  if (featuredImageFile.files[0]) {
-    zip.file(featuredImageFile.files[0].name, featuredImageFile.files[0]);
-  }
-  // Add URL image
-  else if (featuredImageURL.value.trim()) {
-    try {
-      const response = await fetch(featuredImageURL.value.trim());
-      const blob = await response.blob();
-      zip.file(featuredImageName, blob);
-    } catch(err) {
-      alert("Failed to fetch image from URL. Check the link.");
-    }
+  // Add featured image with sanitized filename
+  if (featuredImageBlob) {
+    zip.file(featuredImageBlob.name || 'featuredimage.jpg', featuredImageBlob);
   }
 
-  // ✅ Always include blog scaffold index.html
+  // Include any extra markdown images, using sanitized names
+  extraImages.forEach(img => {
+    const sanitizedName = sanitizeFilename(img.name);
+    zip.file(sanitizedName, img.blob);
+  });
+
+  // Add blog index.html (from same folder or ../blog)
   try {
-    const response = await fetch("./blog/index.html");
-    const indexHtml = await response.text();
-    zip.file("index.html", indexHtml);
-  } catch(err) {
-    console.error("Could not fetch blog/index.html", err);
+    const blogIndexResp = await fetch('../blog/index.html');
+    if (blogIndexResp.ok) {
+      const blogIndexHTML = await blogIndexResp.text();
+      zip.file('index.html', blogIndexHTML);
+    } else {
+      console.warn('Could not fetch blog index.html, skipping');
+    }
+  } catch (err) {
+    console.error('Error fetching blog index.html:', err);
   }
 
-  const content = await zip.generateAsync({ type: "blob" });
+  // Make safe folder name from title
+  let slug = titleInput.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '').toLowerCase();
+  if (slug.length > 32) slug = slug.slice(0, 32);
 
-  // Generate slug from title
-  let slug = title.toLowerCase().trim()
-                  .replace(/[^a-z0-9\\s-]/g, '')
-                  .replace(/\\s+/g, '-')
-                  .replace(/-+/g, '-')
-                  .substring(0, 32);
-
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(content);
-  link.download = slug + ".zip";
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${slug}.zip`;
   link.click();
 });
+

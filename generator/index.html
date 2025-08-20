@@ -1,42 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Blog Post Generator</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <h1>Blog Post Generator with Markdown Preview</h1>
 
   <form id="postForm">
-    <label for="title">Title:</label><br>
-    <input type="text" id="title" required><br><br>
+    <label for="title">Title:</label>
+    <input type="text" id="title" required />
 
-    <label for="youtubeLink">YouTube Link:</label><br>
-    <input type="url" id="youtubeLink"><br><br>
+    <label for="youtubeLink">YouTube Link:</label>
+    <input type="url" id="youtubeLink" />
 
-    <label>Featured Image:</label><br>
-    <input type="file" id="featuredImageFile" accept="image/*"><br>
-    <input type="url" id="featuredImageURL" placeholder="Or paste a direct image URL"><br>
+    <label>Featured Image:</label>
+    <input type="file" id="featuredImageFile" accept="image/*" />
+    <input type="url" id="featuredImageURL" placeholder="Or paste a direct image URL" />
     <div class="image-note">You can select a local file or paste a URL from online.</div>
     <div class="image-buttons">
       <button type="button" id="clearImage">Clear Featured Image</button>
-    </div><br>
+    </div>
 
-    <label for="date">Date:</label><br>
-    <input type="text" id="date" required><br><br>
+    <label for="date">Date:</label>
+    <input type="text" id="date" required />
 
-    <label for="profile">Profile Name:</label><br>
-    <input type="text" id="profile" value="rioforce"><br><br>
+    <label for="profile">Profile Name:</label>
+    <input type="text" id="profile" value="rioforce" />
+
 
     <div class="container">
       <div class="flex-half">
-        <label for="markdownContent">Content (Markdown):</label><br>
+        <label for="markdownContent">Content (Markdown):</label>
         <textarea id="markdownContent" placeholder="Type your Markdown content here..." required></textarea>
-        <div class="cheat-sheet">
-          <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
-          <div class="cheat-sheet-content" id="cheatSheet">
+      </div>
+
+
+      <div class="flex-half">
+        <label>Preview:</label>
+        <div id="preview" class="preview"></div>
+      </div>
+
+          <!-- 🔧 Markdown toolbar (left aligned now) -->
+          <div class="markdown-tools">
+            <button type="button" id="addImageBtn">Add Image</button>
+
+          <!-- 🔻 Hidden image insert form -->
+            <div id="imageInsertForm" class="image-insert-form" style="display:none;">
+            <input type="file" id="mdImageFile" accept="image/*" />
+            <input type="url" id="mdImageURL" placeholder="Or paste image URL" />
+            <button type="button" id="insertImageMarkdown">Insert Image</button>
+          </div>
+          </div>
+
+              <div class="cheat-sheet">
+            <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
+            <div class="cheat-sheet-content" id="cheatSheet">
 # Headings
 # H1
 ## H2
@@ -55,20 +76,11 @@ Images: ![alt text](url)
 
 Blockquote: > quote
 Inline code: `code`
-Code block:
-\`\`\`
-code here
-\`\`\`
-          </div>
-        </div>
+</div>
       </div>
-      <div class="flex-half">
-        <label>Preview:</label>
-        <div id="preview" class="preview"></div>
-      </div>
-    </div><br>
+    </div>
 
-    <button type="submit">Generate ZIP</button>
+    <button type="submit" class="generate-btn">Generate Blog Post</button>
   </form>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
