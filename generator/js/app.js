@@ -1,4 +1,4 @@
-// References
+// --- References ---
 const postForm = document.getElementById('postForm');
 const titleInput = document.getElementById('title');
 const youtubeLinkInput = document.getElementById('youtubeLink');
@@ -23,13 +23,13 @@ dateInput.value = new Date().toLocaleString('en-US', { month: 'short', day: 'num
 // --- Sanitize filenames ---
 function sanitizeFilename(name) {
   return name
-    .trim()                        // remove leading/trailing spaces
-    .replace(/\s+/g, '-')          // convert spaces to dashes
-    .replace(/[^a-zA-Z0-9\-.]/g, '') // remove any other special chars except dot/dash
+    .trim()
+    .replace(/\s+/g, '-')            // convert spaces to dashes
+    .replace(/[^a-zA-Z0-9\-.]/g, '') // remove other special chars except dot/dash
     .toLowerCase();
 }
 
-// Handle featured image file select
+// --- Featured Image Handlers ---
 featuredImageFileInput.addEventListener('change', () => {
   const file = featuredImageFileInput.files[0];
   if (file) {
@@ -44,7 +44,6 @@ featuredImageFileInput.addEventListener('change', () => {
   }
 });
 
-// Handle featured image URL input
 featuredImageURLInput.addEventListener('input', async () => {
   const url = featuredImageURLInput.value.trim();
   if (!url) return;
@@ -60,7 +59,6 @@ featuredImageURLInput.addEventListener('input', async () => {
     console.error('Failed to load image from URL', err);
   }
 });
-
 
 // Clear featured image
 clearImageBtn.addEventListener('click', () => {
@@ -123,14 +121,6 @@ document.getElementById('addImageBtn').addEventListener('click', () => {
   form.style.display = form.style.display === 'none' ? 'block' : 'none';
 });
 
-function sanitizeFilename(name) {
-  return name
-    .trim()                        // remove leading/trailing spaces
-    .replace(/\s+/g, '-')          // convert spaces to dashes
-    .replace(/[^a-zA-Z0-9\-.]/g, '') // remove any other special chars except dot/dash
-    .toLowerCase();
-}
-
 document.getElementById('insertImageMarkdown').addEventListener('click', async () => {
   const fileInput = document.getElementById('mdImageFile');
   const urlInput = document.getElementById('mdImageURL');
@@ -176,7 +166,6 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
   document.getElementById('imageInsertForm').style.display = 'none';
 });
 
-
 // --- Form submit ---
 postForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -194,20 +183,20 @@ postForm.addEventListener('submit', async (e) => {
   zip.file('postinfo.json', JSON.stringify(postinfo, null, 4));
   zip.file('content.md', markdownContent.value);
 
-  // Add featured image with sanitized filename
+  // Add featured image
   if (featuredImageBlob) {
     zip.file(featuredImageBlob.name || 'featuredimage.jpg', featuredImageBlob);
   }
 
-  // Include any extra markdown images, using sanitized names
+  // Add extra markdown images
   extraImages.forEach(img => {
     const sanitizedName = sanitizeFilename(img.name);
     zip.file(sanitizedName, img.blob);
   });
 
-  // Add blog index.html (from same folder or ../blog)
+  // Add blog index.html if available
   try {
-    const blogIndexResp = await fetch('../blog/index.html');
+    const blogIndexResp = await fetch('blog/index.html');
     if (blogIndexResp.ok) {
       const blogIndexHTML = await blogIndexResp.text();
       zip.file('index.html', blogIndexHTML);
@@ -228,4 +217,3 @@ postForm.addEventListener('submit', async (e) => {
   link.download = `${slug}.zip`;
   link.click();
 });
-
