@@ -25,4 +25,7 @@ This is a work in progress. I still have these things to do.
 - Continue to rename files to remove "video" references, since this is now a blog platform primarily.
 - Revamp the whole website design to be less YouTube style and more blog style.
 - Add more to the footer
-- Maybe one day I can have a static front end that you can run on your computer or online that will generate all these files for you just by you inputting the information.
+- For the generator:
+- - Add github functionality
+- - Have it update the post list to make the new post live
+- - Add more formatting options, youtube embed, links, italic, bold, headers, etc., buttons to do more WYSIWYG editing.
