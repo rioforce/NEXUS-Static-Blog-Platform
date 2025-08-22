@@ -98,17 +98,40 @@ featuredImageFileInput.addEventListener('change', () => {
 featuredImageURLInput.addEventListener('input', async () => {
   const url = featuredImageURLInput.value.trim();
   if (!url) return;
+
   try {
     const resp = await fetch(url);
     const blob = await resp.blob();
+    const MAX_CACHE_SIZE = 5 * 1024 * 1024; // 5 MB
+
     const originalName = url.split('/').pop().split('?')[0] || 'featuredimage.jpg';
     const sanitizedName = sanitizeFilename(originalName);
     featuredImageBlob = new File([blob], sanitizedName, { type: blob.type });
     featuredImageDataUrl = URL.createObjectURL(featuredImageBlob);
+
+    if (blob.size <= MAX_CACHE_SIZE) {
+      // Safe to cache
+      const reader = new FileReader();
+      reader.onload = e => {
+        localStorage.setItem('featuredImageData', e.target.result);
+        localStorage.setItem('featuredImageName', sanitizedName);
+        featuredWarning.innerText = ''; // clear any previous warning
+      };
+      reader.readAsDataURL(blob);
+    } else {
+      // Too big to cache
+      localStorage.removeItem('featuredImageData');
+      localStorage.removeItem('featuredImageName');
+      featuredWarning.innerText = '⚠️ This image is too large to cache and will not persist on refresh.';
+      featuredWarning.style.color = 'red';
+    }
+
     updatePreview();
     saveFormCache();
   } catch (err) {
     console.error('Failed to load image from URL', err);
+    featuredWarning.innerText = '⚠️ Failed to load image from URL.';
+    featuredWarning.style.color = 'red';
   }
 });
 
@@ -152,6 +175,8 @@ markdownContent.addEventListener('input', debouncePreview);
 
 // ---------------------- Inline Images ----------------------
 insertImageMarkdownBtn.addEventListener('click', async () => {
+  const MAX_INLINE_CACHE_SIZE = 3 * 1024 * 1024; // 3 MB
+
   function insertAtCursor(text) {
     const start = markdownContent.selectionStart;
     const end = markdownContent.selectionEnd;
@@ -169,43 +194,49 @@ insertImageMarkdownBtn.addEventListener('click', async () => {
     return (base || 'image').replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ');
   }
 
-  if (mdImageFileInput.files.length > 0) {
-    const file = mdImageFileInput.files[0];
-    const sanitizedName = sanitizeFilename(file.name);
-    extraImages.push({ name: sanitizedName, blob: file });
+  let file, sanitizedName, blob;
 
+  if (mdImageFileInput.files.length > 0) {
+    file = mdImageFileInput.files[0];
+    sanitizedName = sanitizeFilename(file.name);
+    blob = file;
+  } else if (mdImageURLInput.value.trim()) {
+    try {
+      const resp = await fetch(mdImageURLInput.value.trim());
+      blob = await resp.blob();
+      const originalName = mdImageURLInput.value.split('/').pop().split('?')[0] || 'image.jpg';
+      sanitizedName = sanitizeFilename(originalName);
+    } catch {
+      alert('Failed to fetch image from URL.');
+      return;
+    }
+  } else {
+    return;
+  }
+
+  extraImages.push({ name: sanitizedName, blob });
+
+  if (blob.size <= MAX_INLINE_CACHE_SIZE) {
     const reader = new FileReader();
     reader.onload = e => {
       localStorage.setItem(`mdImage_${sanitizedName}`, e.target.result);
-      insertAtCursor(`![${altFrom(file.name)}](${sanitizedName})`);
+      insertAtCursor(`![${altFrom(sanitizedName)}](${sanitizedName})`);
       renderInlineImages();
     };
-    reader.readAsDataURL(file);
-
-  } else if (mdImageURLInput.value.trim()) {
-    const url = mdImageURLInput.value.trim();
-    try {
-      const resp = await fetch(url);
-      const blob = await resp.blob();
-      const originalName = url.split('/').pop().split('?')[0] || 'image.jpg';
-      const sanitizedName = sanitizeFilename(originalName);
-      extraImages.push({ name: sanitizedName, blob });
-
-      const reader = new FileReader();
-      reader.onload = e => {
-        localStorage.setItem(`mdImage_${sanitizedName}`, e.target.result);
-        insertAtCursor(`![${altFrom(originalName)}](${sanitizedName})`);
-        renderInlineImages();
-      };
-      reader.readAsDataURL(blob);
-    } catch {
-      alert('Failed to fetch image from URL.');
-    }
+    reader.readAsDataURL(blob);
+    inlineImageWarning.innerText = '';
+  } else {
+    // Too big to cache
+    insertAtCursor(`![${altFrom(sanitizedName)}](${sanitizedName})`);
+    inlineImageWarning.innerText = '⚠️ This image is too large to cache and will not persist on refresh.';
+    inlineImageWarning.style.color = 'red';
+    renderInlineImages();
   }
 
   mdImageFileInput.value = '';
   mdImageURLInput.value = '';
 });
+
 
 function removeInlineImage(name) {
   const url = extraImageURLs.get(name);
