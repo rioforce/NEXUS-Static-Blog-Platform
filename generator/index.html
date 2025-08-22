@@ -11,74 +11,57 @@
   <h1>Blog Post Generator with Markdown Preview</h1>
 
   <form id="postForm">
-  <label for="title">Title:</label>
-  <input type="text" id="title" required />
 
-  <label for="youtubeLink">YouTube Link:</label>
-  <input type="url" id="youtubeLink" />
+  <!-- ===== Top Fields ===== -->
+  <div class="top-fields">
+    <label for="title">Title:</label>
+    <input type="text" id="title" required />
 
-  <label>Featured Image:</label>
-  <input type="file" id="featuredImageFile" accept="image/*" />
-  <input type="url" id="featuredImageURL" placeholder="Or paste a direct image URL" />
-  <div class="image-note">You can select a local file or paste a URL from online.</div>
-  <div class="image-buttons">
-    <button type="button" id="clearImage">Clear Featured Image</button>
+    <label for="youtubeLink">YouTube Link:</label>
+    <input type="url" id="youtubeLink" />
+
+    <label>Featured Image:</label>
+    <input type="file" id="featuredImageFile" accept="image/*" />
+    <input type="url" id="featuredImageURL" placeholder="Or paste a direct image URL" />
+    <div class="image-note">You can select a local file or paste a URL from online.</div>
+    <div class="image-buttons">
+      <button type="button" id="clearImage">Clear Featured Image</button>
+    </div>
+
+    <label for="date">Date:</label>
+    <input type="text" id="date" required />
+
+    <label for="profile">Profile Name:</label>
+    <input type="text" id="profile" value="rioforce" />
   </div>
 
-  <label for="date">Date:</label>
-  <input type="text" id="date" required />
-
-  <label for="profile">Profile Name:</label>
-  <input type="text" id="profile" value="rioforce" />
-
-  <!-- GitHub commit fields -->
-  <label for="ghUsername">GitHub Username:</label>
-  <input type="text" id="ghUsername" placeholder="Your GitHub username" />
-
-  <label for="ghRepo">GitHub Repo:</label>
-  <input type="text" id="ghRepo" placeholder="Repository name" />
-
-  <label for="ghToken">GitHub Token:</label>
-  <input type="text" id="ghToken" placeholder="Personal Access Token (session only)" />
-  <div style="text-align:center; margin-bottom:10px;">
-    <a href="https://github.com/settings/personal-access-tokens" target="_blank" style="font-size:0.9em;">
-      Find or create your tokens here
-    </a>
-  </div>
-
-  <label for="commitMessage">Commit Message:</label>
-  <input type="text" id="commitMessage" placeholder="Commit message" value="Add new blog post" />
-
+  <!-- ===== Markdown Editor + Preview ===== -->
   <div class="container">
-    <div class="flex-half">
-      <label for="markdownContent">Content (Markdown):</label>
+    <!-- Editor + Toolbar -->
+    <div class="flex-half editor-column">
+      <div class="markdown-toolbar">
+        <button type="button" class="format-btn" data-format="bold"><b>B</b></button>
+        <button type="button" class="format-btn" data-format="italic"><i>I</i></button>
+        <button type="button" class="format-btn" data-format="underline"><u>U</u></button>
+      </div>
+
       <textarea id="markdownContent" placeholder="Type your Markdown content here..." required></textarea>
-    </div>
 
-    <div class="flex-half">
-      <label>Preview:</label>
-      <div id="preview" class="preview"></div>
-    </div>
+<div id="inlineImageList" class="inline-image-list">
+  <!-- JS will insert placeholder or uploaded images here -->
+</div>
 
-    <!-- Markdown toolbar -->
-  <div class="markdown-toolbar">
-    <button type="button" class="format-btn" data-format="bold"><b>B</b></button>
-    <button type="button" class="format-btn" data-format="italic"><i>I</i></button>
-    <button type="button" class="format-btn" data-format="underline"><u>U</u></button>
-    <button type="button" class="format-btn" data-format="link">Link</button>
-    <button type="button" id="addImageBtn">Add Image</button>
-  </div>
+<!-- Inline image uploader (always visible below the list) -->
+<div class="image-insert-form">
+  <input type="file" id="mdImageFile" accept="image/*" />
+  <input type="url" id="mdImageURL" placeholder="Or paste image URL" />
+  <button type="button" id="insertImageMarkdown">Insert Image</button>
+</div>
 
-  <!-- Hidden image insert form -->
-  <div id="imageInsertForm" class="image-insert-form" style="display:none;">
-    <input type="file" id="mdImageFile" accept="image/*" />
-    <input type="url" id="mdImageURL" placeholder="Or paste image URL" />
-    <button type="button" id="insertImageMarkdown">Insert Image</button>
-  </div>
-
-    <div class="cheat-sheet">
-      <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
-      <div class="cheat-sheet-content" id="cheatSheet">
+      <!-- Markdown cheat sheet -->
+      <div class="cheat-sheet">
+        <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
+        <div class="cheat-sheet-content" id="cheatSheet">
 # Headings
 # H1
 ## H2
@@ -97,9 +80,43 @@ Images: ![alt text](url)
 
 Blockquote: > quote
 Inline code: `code`
+        </div>
       </div>
     </div>
+
+    <!-- Preview -->
+    <div class="flex-half preview-column">
+      <label>Preview:</label>
+      <div id="preview" class="preview"></div>
+    </div>
   </div>
+
+  <hr>
+
+  <!-- ===== GitHub Fields ===== -->
+  <div class="github-fields">
+    <label for="ghUsername">GitHub Username:</label>
+    <input type="text" id="ghUsername" placeholder="Your GitHub username" />
+
+    <label for="ghRepo">GitHub Repo:</label>
+    <input type="text" id="ghRepo" placeholder="Repository name" />
+
+    <label for="ghToken">GitHub Token:</label>
+    <input type="text" id="ghToken" placeholder="Personal Access Token (session only)" />
+
+    <div style="text-align:center; margin-bottom:10px;">
+      <a href="https://github.com/settings/personal-access-tokens" target="_blank" style="font-size:0.9em;">
+        Find or create your tokens here
+      </a>
+    </div>
+
+    <label for="commitMessage">Commit Message:</label>
+    <input type="text" id="commitMessage" placeholder="Commit message" value="Add new blog post" />
+
+    <div id="ghProgress" style="margin-top:10px; font-family: monospace;"></div>
+    <div id="commitLink"></div>
+  </div>
+
 
   <!-- Buttons group -->
   <div class="button-group">
@@ -111,7 +128,7 @@ Inline code: `code`
 </form>
 
 <div class="fine-print" style="margin-top:20px; text-align:center;">
-  <button type="button" id="clearAllBtn" style="font-size:0.85em;">Clear All</button>
+  <button type="button" id="clearAll" style="font-size:0.85em;">Clear All</button>
 </div>
 
 

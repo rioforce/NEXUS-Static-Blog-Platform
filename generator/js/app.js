@@ -9,23 +9,18 @@ const profileInput = document.getElementById('profile');
 const markdownContent = document.getElementById('markdownContent');
 const preview = document.getElementById('preview');
 const clearImageBtn = document.getElementById('clearImage');
-
-const addImageBtn = document.getElementById('addImageBtn');
-const imageInsertForm = document.getElementById('imageInsertForm');
 const mdImageFileInput = document.getElementById('mdImageFile');
 const mdImageURLInput = document.getElementById('mdImageURL');
-const insertImageBtn = document.getElementById('insertImageMarkdown');
+const insertImageMarkdownBtn = document.getElementById('insertImageMarkdown');
+const clearAllBtn = document.getElementById('clearAll');
 const inlineImageList = document.getElementById('inlineImageList');
-
-const clearAllBtn = document.getElementById('clearAllBtn');
 
 // ---------------------- State ----------------------
 let featuredImageDataUrl = null;
 let featuredImageBlob = null;
-let featuredImageURLObject = null;
-
 let extraImages = [];
-const extraImageURLs = new Map();
+let extraImageURLs = new Map();
+let debounceTimer = null;
 
 // ---------------------- Utilities ----------------------
 function sanitizeFilename(name) {
@@ -51,15 +46,14 @@ function saveFormCache() {
 
 function restoreFormCache() {
   const saved = localStorage.getItem('markdownEditorCache');
-  if (saved) {
-    const data = JSON.parse(saved);
-    titleInput.value = data.title || '';
-    youtubeLinkInput.value = data.youtubeLink || '';
-    featuredImageURLInput.value = data.featuredImageURL || '';
-    dateInput.value = data.date || dateInput.value;
-    profileInput.value = data.profile || '';
-    markdownContent.value = data.markdownContent || '';
-  }
+  if (!saved) return;
+  const data = JSON.parse(saved);
+  titleInput.value = data.title || '';
+  youtubeLinkInput.value = data.youtubeLink || '';
+  featuredImageURLInput.value = data.featuredImageURL || '';
+  dateInput.value = data.date || dateInput.value;
+  profileInput.value = data.profile || '';
+  markdownContent.value = data.markdownContent || '';
 }
 
 // ---------------------- Featured Image ----------------------
@@ -71,10 +65,8 @@ featuredImageFileInput.addEventListener('change', () => {
   reader.onload = e => {
     featuredImageDataUrl = e.target.result;
     featuredImageBlob = new File([file], sanitizedName, { type: file.type });
-
     localStorage.setItem('featuredImageData', e.target.result);
     localStorage.setItem('featuredImageName', sanitizedName);
-
     updatePreview();
     saveFormCache();
   };
@@ -90,8 +82,7 @@ featuredImageURLInput.addEventListener('input', async () => {
     const originalName = url.split('/').pop().split('?')[0] || 'featuredimage.jpg';
     const sanitizedName = sanitizeFilename(originalName);
     featuredImageBlob = new File([blob], sanitizedName, { type: blob.type });
-    if (featuredImageURLObject) URL.revokeObjectURL(featuredImageURLObject);
-    featuredImageDataUrl = featuredImageURLObject = URL.createObjectURL(featuredImageBlob);
+    featuredImageDataUrl = URL.createObjectURL(featuredImageBlob);
     updatePreview();
     saveFormCache();
   } catch (err) {
@@ -106,20 +97,39 @@ clearImageBtn.addEventListener('click', () => {
   featuredImageURLInput.value = '';
   localStorage.removeItem('featuredImageData');
   localStorage.removeItem('featuredImageName');
-  if (featuredImageURLObject) {
-    URL.revokeObjectURL(featuredImageURLObject);
-    featuredImageURLObject = null;
-  }
   updatePreview();
   saveFormCache();
 });
 
-// ---------------------- Inline Markdown Images ----------------------
-addImageBtn.addEventListener('click', () => {
-  imageInsertForm.style.display = imageInsertForm.style.display === 'none' ? 'block' : 'none';
-});
+// ---------------------- Markdown Preview ----------------------
+function rewriteMarkdownForPreview(mdText) {
+  if (!extraImages.length) return mdText;
+  let rewritten = mdText;
+  for (const { name, blob } of extraImages) {
+    if (!extraImageURLs.has(name)) extraImageURLs.set(name, URL.createObjectURL(blob));
+    const url = extraImageURLs.get(name);
+    rewritten = rewritten.replace(new RegExp(`\\]\\(${escapeRegExp(name)}\\)`, 'g'), `](${url})`);
+  }
+  return rewritten;
+}
 
-insertImageBtn.addEventListener('click', async () => {
+function updatePreview() {
+  const mdForPreview = rewriteMarkdownForPreview(markdownContent.value);
+  const featuredHTML = featuredImageDataUrl
+    ? `<div class="preview-featured"><img src="${featuredImageDataUrl}" alt="Featured Image"></div>`
+    : '';
+  preview.innerHTML = featuredHTML + marked.parse(mdForPreview, { gfm: true, breaks: true });
+}
+
+function debouncePreview() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(updatePreview, 250);
+}
+
+markdownContent.addEventListener('input', debouncePreview);
+
+// ---------------------- Inline Images ----------------------
+insertImageMarkdownBtn.addEventListener('click', async () => {
   function insertAtCursor(text) {
     const start = markdownContent.selectionStart;
     const end = markdownContent.selectionEnd;
@@ -146,7 +156,7 @@ insertImageBtn.addEventListener('click', async () => {
     reader.onload = e => {
       localStorage.setItem(`mdImage_${sanitizedName}`, e.target.result);
       insertAtCursor(`![${altFrom(file.name)}](${sanitizedName})`);
-      renderInlineImageList();
+      renderInlineImages();
     };
     reader.readAsDataURL(file);
 
@@ -163,7 +173,7 @@ insertImageBtn.addEventListener('click', async () => {
       reader.onload = e => {
         localStorage.setItem(`mdImage_${sanitizedName}`, e.target.result);
         insertAtCursor(`![${altFrom(originalName)}](${sanitizedName})`);
-        renderInlineImageList();
+        renderInlineImages();
       };
       reader.readAsDataURL(blob);
     } catch {
@@ -173,136 +183,101 @@ insertImageBtn.addEventListener('click', async () => {
 
   mdImageFileInput.value = '';
   mdImageURLInput.value = '';
-  imageInsertForm.style.display = 'none';
 });
 
-// ---------------------- Render Inline Image List ----------------------
-function renderInlineImageList() {
-  inlineImageList.innerHTML = '';
-  extraImages.forEach(img => {
-    const item = document.createElement('div');
-    item.className = 'inline-image-item';
-    item.style.display = 'flex';
-    item.style.alignItems = 'center';
-    item.style.marginBottom = '4px';
-
-    const thumb = document.createElement('span');
-    thumb.innerText = img.name;
-    thumb.style.marginRight = '8px';
-
-    const removeBtn = document.createElement('button');
-    removeBtn.innerText = 'Remove';
-    removeBtn.style.fontSize = '0.8em';
-    removeBtn.addEventListener('click', () => {
-      removeInlineImage(img.name);
-      renderInlineImageList();
-    });
-
-    item.appendChild(thumb);
-    item.appendChild(removeBtn);
-    inlineImageList.appendChild(item);
-  });
-}
-
 function removeInlineImage(name) {
-  // Revoke object URL
   const url = extraImageURLs.get(name);
   if (url) URL.revokeObjectURL(url);
   extraImageURLs.delete(name);
 
-  // Remove from extraImages array
   extraImages = extraImages.filter(img => img.name !== name);
-
-  // Remove from localStorage
   localStorage.removeItem(`mdImage_${name}`);
 
-  // Remove ![]() from markdownContent
   const regex = new RegExp(`!\\[[^\\]]*\\]\\(${escapeRegExp(name)}\\)`, 'g');
   markdownContent.value = markdownContent.value.replace(regex, '');
 
-  // Update preview
+  renderInlineImages();
   updatePreview();
   saveFormCache();
 }
 
-// Apply formatting to selected text
-document.querySelectorAll('.format-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const format = btn.dataset.format;
-    const start = markdownContent.selectionStart;
-    const end = markdownContent.selectionEnd;
-    const selected = markdownContent.value.substring(start, end);
+function renderInlineImages() {
+  inlineImageList.innerHTML = '';
 
-    let insertText;
-    switch (format) {
-      case 'bold':
-        insertText = `**${selected || 'bold'}**`;
-        break;
-      case 'italic':
-        insertText = `*${selected || 'italic'}*`;
-        break;
-      case 'underline':
-        insertText = `<u>${selected || 'underline'}</u>`;
-        break;
-      case 'link':
-        const url = prompt('Enter URL:', 'https://');
-        if (!url) return;
-        insertText = `[${selected || 'link text'}](${url})`;
-        break;
-    }
+  if (extraImages.length === 0) {
+    const placeholder = document.createElement('div');
+    placeholder.style.width = '100px';
+    placeholder.style.height = '100px';
+    placeholder.style.border = '2px dashed #ccc';
+    placeholder.style.borderRadius = '6px';
+    placeholder.style.display = 'inline-block';
+    placeholder.style.margin = '4px';
+    placeholder.style.background = '#f9f9f9';
+    inlineImageList.appendChild(placeholder);
+  }
 
-    // Insert text at selection
-    const before = markdownContent.value.substring(0, start);
-    const after = markdownContent.value.substring(end);
-    markdownContent.value = before + insertText + after;
+  extraImages.forEach(img => {
+    const url = extraImageURLs.get(img.name) || URL.createObjectURL(img.blob);
+    extraImageURLs.set(img.name, url);
 
-    // Move cursor to end of inserted text
-    markdownContent.selectionStart = markdownContent.selectionEnd = start + insertText.length;
-    markdownContent.focus();
-    debouncePreview();
-    saveFormCache();
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    wrapper.style.display = 'inline-block';
+    wrapper.style.margin = '4px';
+
+    const imageEl = document.createElement('img');
+    imageEl.src = url;
+    imageEl.alt = img.name;
+    imageEl.style.width = '100px';
+    imageEl.style.height = '100px';
+    imageEl.style.objectFit = 'cover';
+    imageEl.style.border = '1px solid #ccc';
+    imageEl.style.borderRadius = '6px';
+    wrapper.appendChild(imageEl);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.position = 'absolute';
+    removeBtn.style.top = '2px';
+    removeBtn.style.right = '2px';
+    removeBtn.style.background = 'rgba(255,0,0,0.8)';
+    removeBtn.style.color = 'white';
+    removeBtn.style.border = 'none';
+    removeBtn.style.borderRadius = '4px';
+    removeBtn.style.padding = '2px 6px';
+    removeBtn.style.cursor = 'pointer';
+    removeBtn.style.fontSize = '10px';
+    removeBtn.addEventListener('click', () => removeInlineImage(img.name));
+    wrapper.appendChild(removeBtn);
+
+    inlineImageList.appendChild(wrapper);
   });
-});
+}
 
+// ---------------------- Clear All ----------------------
+clearAllBtn.addEventListener('click', () => {
+  if (!confirm('Are you sure? This will clear the whole form and cache.')) return;
 
-// ---------------------- Preview ----------------------
-function rewriteMarkdownForPreview(mdText) {
+  postForm.reset();
+
+  featuredImageDataUrl = null;
+  featuredImageBlob = null;
+  localStorage.removeItem('featuredImageData');
+  localStorage.removeItem('featuredImageName');
+
+  extraImages.forEach(img => localStorage.removeItem(`mdImage_${img.name}`));
+  extraImages = [];
   extraImageURLs.forEach(url => URL.revokeObjectURL(url));
   extraImageURLs.clear();
 
-  let rewritten = mdText;
-  extraImages.forEach(({ name, blob }) => {
-    const url = URL.createObjectURL(blob);
-    extraImageURLs.set(name, url);
-    rewritten = rewritten.replace(new RegExp(`\\]\\(${escapeRegExp(name)}\\)`, 'g'), `](${url})`);
-  });
-  return rewritten;
-}
+  markdownContent.value = '';
+  inlineImageList.innerHTML = '';
+  updatePreview();
 
-function updatePreview() {
-  const rawMd = markdownContent.value;
-  const mdForPreview = rewriteMarkdownForPreview(rawMd);
+  localStorage.removeItem('markdownEditorCache');
+});
 
-  if (featuredImageURLObject) URL.revokeObjectURL(featuredImageURLObject);
-
-  const featuredHTML = featuredImageDataUrl
-    ? `<div class="preview-featured"><img src="${
-        featuredImageDataUrl.startsWith('blob:') ? featuredImageDataUrl : (featuredImageURLObject = URL.createObjectURL(featuredImageBlob))
-      }" alt="Featured Image"></div>`
-    : '';
-
-  preview.innerHTML = featuredHTML + marked.parse(mdForPreview, { gfm: true, breaks: true });
-}
-
-let debounceTimer;
-function debouncePreview() {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(updatePreview, 250);
-}
-
-markdownContent.addEventListener('input', debouncePreview);
-
-// ---------------------- Cache Restore ----------------------
+// ---------------------- DOMContentLoaded ----------------------
 window.addEventListener('DOMContentLoaded', () => {
   restoreFormCache();
 
@@ -314,9 +289,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const arr = fData.split(',');
     const mime = arr[0].match(/:(.*?);/)[1];
     const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    const u8arr = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
     featuredImageBlob = new File([u8arr], fName, { type: mime });
   }
 
@@ -324,103 +298,17 @@ window.addEventListener('DOMContentLoaded', () => {
   extraImages = [];
   Object.keys(localStorage).forEach(key => {
     if (key.startsWith('mdImage_')) {
-      const dataUrl = localStorage.getItem(key);
       const name = key.replace('mdImage_', '');
+      const dataUrl = localStorage.getItem(key);
       const arr = dataUrl.split(',');
       const mime = arr[0].match(/:(.*?);/)[1];
       const bstr = atob(arr[1]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      while (n--) u8arr[n] = bstr.charCodeAt(n);
+      const u8arr = new Uint8Array(bstr.length);
+      for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
       extraImages.push({ name, blob: new File([u8arr], name, { type: mime }) });
     }
   });
 
-  renderInlineImageList();
+  renderInlineImages();
   updatePreview();
-});
-
-// ---------------------- Form Submit (ZIP) ----------------------
-postForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  localStorage.removeItem('markdownEditorCache');
-
-  const slug = titleInput.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '').toLowerCase();
-  const zip = new JSZip();
-
-  zip.file('postinfo.json', JSON.stringify({
-    title: titleInput.value,
-    youtubeLink: youtubeLinkInput.value,
-    featuredImage: featuredImageBlob ? `./${featuredImageBlob.name}` : '',
-    date: dateInput.value,
-    content: 'content.md',
-    profile: profileInput.value
-  }, null, 4));
-
-  zip.file('content.md', markdownContent.value);
-
-  if (featuredImageBlob) zip.file(featuredImageBlob.name, featuredImageBlob);
-  extraImages.forEach(img => zip.file(img.name, img.blob));
-
-  try {
-    const blogIndexResp = await fetch('blog/index.html');
-    if (blogIndexResp.ok) zip.file('index.html', await blogIndexResp.text());
-  } catch (err) {
-    console.warn('Skipping blog/index.html fetch', err);
-  }
-
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `${slug}.zip`;
-  link.click();
-});
-
-// ---------------------- Clear All Button ----------------------
-clearAllBtn.addEventListener('click', () => {
-  const confirmed = confirm("Are you sure? This will clear the whole form and cache.");
-  if (!confirmed) return;
-
-  // Clear all form fields
-  titleInput.value = '';
-  youtubeLinkInput.value = '';
-  featuredImageFileInput.value = '';
-  featuredImageURLInput.value = '';
-  dateInput.value = '';
-  profileInput.value = '';
-  markdownContent.value = '';
-  commitMessageInput.value = 'Add new blog post';
-  ghTokenInput.value = '';
-  ghUserInput.value = '';
-  ghRepoInput.value = '';
-
-  // Clear featured image
-  featuredImageDataUrl = null;
-  featuredImageBlob = null;
-  if (featuredImageURLObject) {
-    URL.revokeObjectURL(featuredImageURLObject);
-    featuredImageURLObject = null;
-  }
-
-  // Clear inline images
-  extraImages.forEach(img => {
-    const url = extraImageURLs.get(img.name);
-    if (url) URL.revokeObjectURL(url);
-    localStorage.removeItem(`mdImage_${img.name}`);
-  });
-  extraImages = [];
-  extraImageURLs.clear();
-
-  // Clear localStorage cache
-  localStorage.removeItem('markdownEditorCache');
-  localStorage.removeItem('featuredImageData');
-  localStorage.removeItem('featuredImageName');
-
-  // Reset preview and inline image list
-  renderInlineImageList();
-  updatePreview();
-
-  // Clear GitHub status
-  ghProgress.innerText = '';
-  commitLinkContainer.innerHTML = '';
 });
