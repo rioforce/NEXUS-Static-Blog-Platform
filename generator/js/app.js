@@ -15,17 +15,17 @@ let featuredImageBlob = null;
 
 // Store additional markdown images
 let extraImages = [];
-const extraImageURLs = new Map(); // For preview object URLs
+const extraImageURLs = new Map();
 
-// Auto-fill date
+// --- Auto-fill date ---
 dateInput.value = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 // --- Sanitize filenames ---
 function sanitizeFilename(name) {
   return name
     .trim()
-    .replace(/\s+/g, '-')            // convert spaces to dashes
-    .replace(/[^a-zA-Z0-9\-.]/g, '') // remove other special chars except dot/dash
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9\-.]/g, '')
     .toLowerCase();
 }
 
@@ -58,9 +58,7 @@ function restoreFormCache() {
 
 // Attach input listeners for caching
 [titleInput, youtubeLinkInput, featuredImageURLInput, dateInput, profileInput, markdownContent]
-  .forEach(input => {
-    input.addEventListener('input', saveFormCache);
-  });
+  .forEach(input => input.addEventListener('input', saveFormCache));
 
 // Restore cache on page load
 window.addEventListener('DOMContentLoaded', restoreFormCache);
@@ -68,16 +66,16 @@ window.addEventListener('DOMContentLoaded', restoreFormCache);
 // --- Featured Image Handlers ---
 featuredImageFileInput.addEventListener('change', () => {
   const file = featuredImageFileInput.files[0];
-  if (file) {
-    const sanitizedName = sanitizeFilename(file.name);
-    const reader = new FileReader();
-    reader.onload = e => {
-      featuredImageDataUrl = e.target.result;
-      featuredImageBlob = new File([file], sanitizedName, { type: file.type });
-      updatePreview();
-    };
-    reader.readAsDataURL(file);
-  }
+  if (!file) return;
+  const sanitizedName = sanitizeFilename(file.name);
+  const reader = new FileReader();
+  reader.onload = e => {
+    featuredImageDataUrl = e.target.result;
+    featuredImageBlob = new File([file], sanitizedName, { type: file.type });
+    updatePreview();
+    saveFormCache();
+  };
+  reader.readAsDataURL(file);
 });
 
 featuredImageURLInput.addEventListener('input', async () => {
@@ -91,18 +89,19 @@ featuredImageURLInput.addEventListener('input', async () => {
     featuredImageBlob = new File([blob], sanitizedName, { type: blob.type });
     featuredImageDataUrl = URL.createObjectURL(featuredImageBlob);
     updatePreview();
+    saveFormCache();
   } catch (err) {
     console.error('Failed to load image from URL', err);
   }
 });
 
-// Clear featured image
 clearImageBtn.addEventListener('click', () => {
   featuredImageDataUrl = null;
   featuredImageBlob = null;
   featuredImageFileInput.value = '';
   featuredImageURLInput.value = '';
   updatePreview();
+  saveFormCache();
 });
 
 // Escape regex helper
@@ -129,11 +128,9 @@ function rewriteMarkdownForPreview(mdText) {
 function updatePreview() {
   const rawMd = markdownContent.value;
   const mdForPreview = rewriteMarkdownForPreview(rawMd);
-
   const featuredHTML = featuredImageDataUrl
     ? `<div class="preview-featured"><img src="${featuredImageDataUrl}" alt="Featured Image"></div>`
     : '';
-
   preview.innerHTML = featuredHTML + marked.parse(mdForPreview, { gfm: true, breaks: true });
 }
 
@@ -145,13 +142,7 @@ function debouncePreview() {
 }
 markdownContent.addEventListener('input', debouncePreview);
 
-// Cheat sheet toggle
-document.getElementById('toggleCheatSheet').addEventListener('click', () => {
-  const sheet = document.getElementById('cheatSheet');
-  sheet.style.display = sheet.style.display === 'none' ? 'block' : 'none';
-});
-
-// --- Add Image tool ---
+// --- Add Image Tool ---
 document.getElementById('addImageBtn').addEventListener('click', () => {
   const form = document.getElementById('imageInsertForm');
   form.style.display = form.style.display === 'none' ? 'block' : 'none';
@@ -160,7 +151,7 @@ document.getElementById('addImageBtn').addEventListener('click', () => {
 document.getElementById('insertImageMarkdown').addEventListener('click', async () => {
   const fileInput = document.getElementById('mdImageFile');
   const urlInput = document.getElementById('mdImageURL');
-  const textarea = document.getElementById('markdownContent');
+  const textarea = markdownContent;
 
   function insertAtCursor(text) {
     const start = textarea.selectionStart;
@@ -171,7 +162,7 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
     textarea.selectionStart = textarea.selectionEnd = start + text.length;
     textarea.focus();
     debouncePreview();
-    saveFormCache(); // Also save after inserting image
+    saveFormCache();
   }
 
   function altFrom(nameOrUrl) {
@@ -203,174 +194,41 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
   document.getElementById('imageInsertForm').style.display = 'none';
 });
 
-// --- Form submit ---
+// --- Form Submit (ZIP Export) ---
 postForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-
-  // Clear cache on export
   localStorage.removeItem('markdownEditorCache');
 
-  const postinfo = {
+  const slug = titleInput.value
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9\-]/g, '')
+    .toLowerCase();
+  const zip = new JSZip();
+
+  zip.file('postinfo.json', JSON.stringify({
     title: titleInput.value,
     youtubeLink: youtubeLinkInput.value,
-    featuredImage: featuredImageBlob ? `./${featuredImageBlob.name || 'featuredimage.jpg'}` : '',
+    featuredImage: featuredImageBlob ? `./${featuredImageBlob.name}` : '',
     date: dateInput.value,
     content: 'content.md',
     profile: profileInput.value
-  };
+  }, null, 4));
 
-  const zip = new JSZip();
-  zip.file('postinfo.json', JSON.stringify(postinfo, null, 4));
   zip.file('content.md', markdownContent.value);
 
-  // Add featured image
-  if (featuredImageBlob) {
-    zip.file(featuredImageBlob.name || 'featuredimage.jpg', featuredImageBlob);
-  }
+  if (featuredImageBlob) zip.file(featuredImageBlob.name, featuredImageBlob);
+  extraImages.forEach(img => zip.file(img.name, img.blob));
 
-  // Add extra markdown images
-  extraImages.forEach(img => {
-    const sanitizedName = sanitizeFilename(img.name);
-    zip.file(sanitizedName, img.blob);
-  });
-
-  // Add blog index.html if available
   try {
     const blogIndexResp = await fetch('blog/index.html');
-    if (blogIndexResp.ok) {
-      const blogIndexHTML = await blogIndexResp.text();
-      zip.file('index.html', blogIndexHTML);
-    } else {
-      console.warn('Could not fetch blog index.html, skipping');
-    }
+    if (blogIndexResp.ok) zip.file('index.html', await blogIndexResp.text());
   } catch (err) {
-    console.error('Error fetching blog index.html:', err);
+    console.warn('Skipping blog/index.html fetch', err);
   }
-
-  // Make safe folder name from title
-  let slug = titleInput.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '').toLowerCase();
-  if (slug.length > 32) slug = slug.slice(0, 32);
 
   const blob = await zip.generateAsync({ type: 'blob' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `${slug}.zip`;
   link.click();
-});
-
-// --- GitHub Commit Integration ---
-const githubUsernameInput = document.getElementById('githubUsername');
-const githubRepoInput = document.getElementById('githubRepo');
-const githubTokenInput = document.getElementById('githubToken');
-const githubMessageInput = document.getElementById('githubMessage');
-const commitBtn = document.getElementById('commitGithubBtn');
-
-// Restore token from sessionStorage
-if (sessionStorage.getItem('githubToken')) {
-  githubTokenInput.value = sessionStorage.getItem('githubToken');
-}
-
-// Enable/disable commit button
-function updateCommitButtonState() {
-  commitBtn.disabled = !(
-    githubUsernameInput.value.trim() &&
-    githubRepoInput.value.trim() &&
-    githubTokenInput.value.trim() &&
-    githubMessageInput.value.trim()
-  );
-}
-[githubUsernameInput, githubRepoInput, githubTokenInput, githubMessageInput].forEach(input => {
-  input.addEventListener('input', () => {
-    // store token in session
-    if (input === githubTokenInput) sessionStorage.setItem('githubToken', input.value.trim());
-    updateCommitButtonState();
-  });
-});
-updateCommitButtonState();
-
-// GitHub API commit function
-async function commitFileToGitHub(owner, repo, path, content, message, token, sha = null) {
-  const encodedContent = btoa(unescape(encodeURIComponent(content)));
-  const body = { message, content: encodedContent };
-  if (sha) body.sha = sha;
-
-  const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
-    method: 'PUT',
-    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json();
-    throw new Error(err.message || 'GitHub commit failed');
-  }
-  return resp.json();
-}
-
-// Handle Commit to GitHub
-commitBtn.addEventListener('click', async () => {
-  commitBtn.disabled = true;
-
-  const owner = githubUsernameInput.value.trim();
-  const repo = githubRepoInput.value.trim();
-  const token = githubTokenInput.value.trim();
-  const message = githubMessageInput.value.trim();
-
-  const slug = sanitizeFilename(titleInput.value);
-  const postPath = `blog/posts/${slug}.md`;
-
-  try {
-    // Commit markdown
-    let sha;
-    try {
-      const checkResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${postPath}`, {
-        headers: { Authorization: `token ${token}` }
-      });
-      if (checkResp.ok) {
-        const data = await checkResp.json();
-        sha = data.sha;
-      }
-    } catch {}
-
-    await commitFileToGitHub(owner, repo, postPath, markdownContent.value, message, token, sha);
-
-    // Commit featured image if present
-    if (featuredImageBlob) {
-      const imgPath = `blog/posts/${featuredImageBlob.name}`;
-      let imgSha;
-      try {
-        const checkImg = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${imgPath}`, {
-          headers: { Authorization: `token ${token}` }
-        });
-        if (checkImg.ok) {
-          const data = await checkImg.json();
-          imgSha = data.sha;
-        }
-      } catch {}
-      await commitFileToGitHub(owner, repo, imgPath, await featuredImageBlob.text(), message, token, imgSha);
-    }
-
-    // Commit extra markdown images
-    for (const img of extraImages) {
-      const imgPath = `blog/posts/${img.name}`;
-      let imgSha;
-      try {
-        const checkImg = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${imgPath}`, {
-          headers: { Authorization: `token ${token}` }
-        });
-        if (checkImg.ok) {
-          const data = await checkImg.json();
-          imgSha = data.sha;
-        }
-      } catch {}
-      await commitFileToGitHub(owner, repo, imgPath, await img.blob.text(), message, token, imgSha);
-    }
-
-    alert('All files committed successfully!');
-  } catch (err) {
-    console.error(err);
-    alert('GitHub commit failed: ' + err.message);
-  } finally {
-    updateCommitButtonState();
-  }
 });

@@ -31,22 +31,22 @@
   <input type="text" id="profile" value="rioforce" />
 
   <!-- GitHub commit fields -->
-  <label for="githubUsername">GitHub Username:</label>
-  <input type="text" id="githubUsername" placeholder="Your GitHub username" />
+  <label for="ghUsername">GitHub Username:</label>
+  <input type="text" id="ghUsername" placeholder="Your GitHub username" />
 
-  <label for="githubRepo">GitHub Repo:</label>
-  <input type="text" id="githubRepo" placeholder="Repository name" />
+  <label for="ghRepo">GitHub Repo:</label>
+  <input type="text" id="ghRepo" placeholder="Repository name" />
 
-  <label for="githubToken">GitHub Token:</label>
-  <input type="text" id="githubToken" placeholder="Personal Access Token (session only)" />
+  <label for="ghToken">GitHub Token:</label>
+  <input type="text" id="ghToken" placeholder="Personal Access Token (session only)" />
   <div style="text-align:center; margin-bottom:10px;">
     <a href="https://github.com/settings/personal-access-tokens" target="_blank" style="font-size:0.9em;">
       Find or create your tokens here
     </a>
   </div>
 
-  <label for="githubMessage">Commit Message:</label>
-  <input type="text" id="githubMessage" placeholder="Commit message" value="Add new blog post" />
+  <label for="commitMessage">Commit Message:</label>
+  <input type="text" id="commitMessage" placeholder="Commit message" value="Add new blog post" />
 
   <div class="container">
     <div class="flex-half">
@@ -99,14 +99,16 @@ Inline code: `code`
   <!-- Buttons group -->
   <div class="button-group">
     <button type="submit" class="generate-btn">Generate Blog Post (ZIP)</button>
-    <button type="button" id="commitGithubBtn" class="generate-btn" disabled>Commit to GitHub</button>
+    <button type="button" id="commitBtn" class="generate-btn" disabled>Commit to GitHub</button>
   </div>
-  <div id="githubProgress" style="margin-top:10px; font-family: monospace;"></div>
+  <div id="ghProgress" style="margin-top:10px; font-family: monospace;"></div>
+  <div id="commitLink"></div>
 </form>
 
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/github.js"></script>
 </body>
 </html>
