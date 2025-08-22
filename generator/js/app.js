@@ -14,7 +14,6 @@ const mdImageURLInput = document.getElementById('mdImageURL');
 const insertImageMarkdownBtn = document.getElementById('insertImageMarkdown');
 const clearAllBtn = document.getElementById('clearAll');
 const inlineImageList = document.getElementById('inlineImageList');
-const MAX_CACHE_SIZE = 2 * 1024 * 1024; // 2 MB limit
 
 // ---------------------- State ----------------------
 let featuredImageDataUrl = null;
@@ -47,43 +46,54 @@ function saveFormCache() {
 
 function restoreFormCache() {
   const saved = localStorage.getItem('markdownEditorCache');
-  if (!saved) return;
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  if (!saved) {
+    dateInput.value = today;
+    return;
+  }
   const data = JSON.parse(saved);
   titleInput.value = data.title || '';
   youtubeLinkInput.value = data.youtubeLink || '';
   featuredImageURLInput.value = data.featuredImageURL || '';
-  dateInput.value = data.date || dateInput.value;
+  dateInput.value = data.date || today;
   profileInput.value = data.profile || '';
   markdownContent.value = data.markdownContent || '';
 }
 
 // ---------------------- Featured Image ----------------------
+const featuredWarning = document.getElementById('featuredWarning');
 featuredImageFileInput.addEventListener('change', () => {
   const file = featuredImageFileInput.files[0];
   if (!file) return;
 
- if (file.size > MAX_CACHE_SIZE) {
-    // Too big for localStorage: preview only
-    featuredImageDataUrl = URL.createObjectURL(file);
-    featuredImageBlob = file;
-    alert('Image too large to cache locally. It will still appear in preview.');
-    updatePreview();
-    saveFormCache(); // saves everything else
-    return;
-  }
+ const MAX_CACHE_SIZE = 5 * 1024 * 1024; // 5 MB
 
   const sanitizedName = sanitizeFilename(file.name);
   const reader = new FileReader();
+
   reader.onload = e => {
     featuredImageDataUrl = e.target.result;
     featuredImageBlob = new File([file], sanitizedName, { type: file.type });
-    localStorage.setItem('featuredImageData', e.target.result);
-    localStorage.setItem('featuredImageName', sanitizedName);
+
+    if (file.size <= MAX_CACHE_SIZE) {
+      localStorage.setItem('featuredImageData', e.target.result);
+      localStorage.setItem('featuredImageName', sanitizedName);
+      featuredWarning.innerText = ''; // clear warning
+    } else {
+      // Skip caching and show warning
+      localStorage.removeItem('featuredImageData');
+      localStorage.removeItem('featuredImageName');
+      featuredWarning.innerText = '⚠️ This image is too large to cache and will not persist on refresh.';
+      featuredWarning.style.color = 'red';
+    }
+
     updatePreview();
     saveFormCache();
   };
+
   reader.readAsDataURL(file);
 });
+
 
 featuredImageURLInput.addEventListener('input', async () => {
   const url = featuredImageURLInput.value.trim();

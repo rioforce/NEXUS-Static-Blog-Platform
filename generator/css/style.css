@@ -144,6 +144,12 @@ input[type="file"] {
   margin-top: 5px;
 }
 
+#featuredWarning {
+  margin-top: 4px;
+  font-size: 0.9em;
+  text-align: center;
+}
+
 .image-buttons {
   margin-top: 6px;
   text-align: center;
