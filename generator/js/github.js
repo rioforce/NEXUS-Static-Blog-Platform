@@ -1,16 +1,13 @@
-// ---------------------- References ----------------------
-const ghTokenInput = document.getElementById('ghToken');
-const ghUserInput = document.getElementById('ghUsername');
-const ghRepoInput = document.getElementById('ghRepo');
-const commitBtn = document.getElementById('commitBtn');
+// --- References ---
+const ghTokenInput = document.getElementById('ghToken');      // GitHub token input
+const ghUserInput = document.getElementById('ghUsername');    // GitHub username
+const ghRepoInput = document.getElementById('ghRepo');        // Repo name
+const commitBtn = document.getElementById('commitBtn');       // Commit button
 const commitMessageInput = document.getElementById('commitMessage');
-const ghProgress = document.getElementById('ghProgress');
+const ghProgress = document.getElementById('ghProgress');     // Progress div
 const commitLinkContainer = document.getElementById('commitLink');
 
-// These come from app.js
-// featuredImageBlob, extraImages, titleInput, markdownContent, dateInput, profileInput
-
-// ---------------------- Helpers ----------------------
+// --- Helper: Base64 encode binary files ---
 async function toBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -20,63 +17,46 @@ async function toBase64(file) {
   });
 }
 
-function utf8ToBase64(str) {
-  return btoa(unescape(encodeURIComponent(str)));
-}
-
-function stripDataUrlPrefix(base64String) {
-  return base64String.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
-}
-
-
-// ---------------------- Field Check ----------------------
-function validateGitHubFields() {
-  return ghTokenInput.value.trim() && ghUserInput.value.trim() && ghRepoInput.value.trim();
-}
-
-function updateCommitBtnState() {
-  commitBtn.disabled = !validateGitHubFields();
-}
-
-[ghTokenInput, ghUserInput, ghRepoInput].forEach(input => input.addEventListener('input', updateCommitBtnState));
-updateCommitBtnState();
-
-// ---------------------- Commit Handler ----------------------
+// --- Commit to GitHub ---
 commitBtn.addEventListener('click', async () => {
-  if (!validateGitHubFields()) {
-    ghProgress.innerText = 'Please fill out all GitHub fields!';
+  const token = ghTokenInput.value.trim();
+  const username = ghUserInput.value.trim();
+  const repo = ghRepoInput.value.trim();
+  const message = commitMessageInput.value.trim() || `New blog post: ${titleInput.value}`;
+
+  if (!token || !username || !repo) {
+    alert('Please fill in GitHub token, username, and repository.');
     return;
   }
 
   commitBtn.disabled = true;
   ghProgress.innerText = 'Starting commit...';
 
-  const token = ghTokenInput.value.trim();
-  const username = ghUserInput.value.trim();
-  const repo = ghRepoInput.value.trim();
-  const message = commitMessageInput.value.trim() || `New blog post: ${titleInput.value}`;
-  const slug = titleInput.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '').toLowerCase();
-  const folderPath = `posts/${slug}/`;
+  const slug = titleInput.value
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9\-]/g, '')
+    .toLowerCase();
+
+  const folderPath = `posts/${slug}/`; // commit under /posts/<slug>/
 
   try {
-    // 1. Get latest SHA
+    // --- Get latest commit SHA ---
     const refResp = await fetch(`https://api.github.com/repos/${username}/${repo}/git/refs/heads/main`, {
       headers: { Authorization: `token ${token}` }
     });
     const refData = await refResp.json();
     const latestSHA = refData.object.sha;
 
-    // 2. Get tree SHA
     const commitResp = await fetch(`https://api.github.com/repos/${username}/${repo}/git/commits/${latestSHA}`, {
       headers: { Authorization: `token ${token}` }
     });
     const commitData = await commitResp.json();
     const baseTreeSHA = commitData.tree.sha;
 
-    // 3. Prepare files
+    // --- Prepare files ---
     const filesToCommit = [];
 
-    // content.md
+    // 1. content.md (plain UTF-8)
     filesToCommit.push({
       path: folderPath + 'content.md',
       mode: '100644',
@@ -84,7 +64,7 @@ commitBtn.addEventListener('click', async () => {
       content: markdownContent.value
     });
 
-    // postinfo.json
+    // 2. postinfo.json (plain UTF-8)
     const postJSON = JSON.stringify({
       title: titleInput.value,
       youtubeLink: youtubeLinkInput.value,
@@ -101,54 +81,49 @@ commitBtn.addEventListener('click', async () => {
       content: postJSON
     });
 
-    // index.html — always include
+    // 3. index.html (plain UTF-8)
     try {
-    const indexResp = await fetch('blog/index.html');
-    if (indexResp.ok) {
+      const indexResp = await fetch('blog/index.html');
+      if (indexResp.ok) {
         const indexText = await indexResp.text();
         filesToCommit.push({
-        path: folderPath + 'index.html',
-        mode: '100644',
-        type: 'blob',
-        content: indexText
+          path: folderPath + 'index.html',
+          mode: '100644',
+          type: 'blob',
+          content: indexText
         });
-    } else {
-        throw new Error('blog/index.html not found');
-    }
+      }
     } catch (err) {
-    console.error('Failed to fetch index.html for commit:', err);
-    ghProgress.innerText = 'Commit failed! blog/index.html missing.';
-    commitBtn.disabled = false;
-    return; // abort commit
+      console.error('Failed to fetch index.html:', err);
     }
 
-    // featured image
+    // 4. Featured image (base64)
     if (featuredImageBlob) {
-    const fContent = await toBase64(featuredImageBlob); // pure base64
-    filesToCommit.push({
+      const fContent = await toBase64(featuredImageBlob);
+      filesToCommit.push({
         path: folderPath + featuredImageBlob.name,
         mode: '100644',
         type: 'blob',
-        content: fContent,       // <-- no data:image prefix
-        encoding: 'base64'       // <-- tell GitHub this is base64
-    });
+        content: fContent,
+        encoding: 'base64'
+      });
     }
 
-    // extra inline images
+    // 5. Extra markdown images (base64)
     for (const img of extraImages) {
-    const iContent = await toBase64(img.blob);
-    filesToCommit.push({
+      const iContent = await toBase64(img.blob);
+      filesToCommit.push({
         path: folderPath + img.name,
         mode: '100644',
         type: 'blob',
-        content: iContent,       // <-- raw base64 only
+        content: iContent,
         encoding: 'base64'
-    });
+      });
     }
 
-
-
     ghProgress.innerText = 'Creating tree...';
+
+    // --- Create Git tree ---
     const treeResp = await fetch(`https://api.github.com/repos/${username}/${repo}/git/trees`, {
       method: 'POST',
       headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
@@ -158,6 +133,8 @@ commitBtn.addEventListener('click', async () => {
     if (!treeData.sha) throw new Error('GitHub tree creation failed');
 
     ghProgress.innerText = 'Creating commit...';
+
+    // --- Create commit ---
     const newCommitResp = await fetch(`https://api.github.com/repos/${username}/${repo}/git/commits`, {
       method: 'POST',
       headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
@@ -166,6 +143,7 @@ commitBtn.addEventListener('click', async () => {
     const newCommitData = await newCommitResp.json();
     if (!newCommitData.sha) throw new Error('GitHub commit creation failed');
 
+    // --- Update branch ---
     await fetch(`https://api.github.com/repos/${username}/${repo}/git/refs/heads/main`, {
       method: 'PATCH',
       headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
@@ -176,13 +154,13 @@ commitBtn.addEventListener('click', async () => {
     const commitUrl = `https://github.com/${username}/${repo}/tree/main/${folderPath}`;
     commitLinkContainer.innerHTML = `<a href="${commitUrl}" target="_blank">View your post on GitHub</a>`;
 
-    // Clear cache if desired
+    // Clear cache
     localStorage.removeItem('markdownEditorCache');
+
   } catch (err) {
     console.error('GitHub commit failed:', err);
     ghProgress.innerText = 'Commit failed! Check console for details.';
   } finally {
-    // Re-enable button for next commit
     commitBtn.disabled = false;
   }
 });
