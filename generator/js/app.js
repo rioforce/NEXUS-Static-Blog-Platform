@@ -225,6 +225,45 @@ function removeInlineImage(name) {
   saveFormCache();
 }
 
+// Apply formatting to selected text
+document.querySelectorAll('.format-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const format = btn.dataset.format;
+    const start = markdownContent.selectionStart;
+    const end = markdownContent.selectionEnd;
+    const selected = markdownContent.value.substring(start, end);
+
+    let insertText;
+    switch (format) {
+      case 'bold':
+        insertText = `**${selected || 'bold'}**`;
+        break;
+      case 'italic':
+        insertText = `*${selected || 'italic'}*`;
+        break;
+      case 'underline':
+        insertText = `<u>${selected || 'underline'}</u>`;
+        break;
+      case 'link':
+        const url = prompt('Enter URL:', 'https://');
+        if (!url) return;
+        insertText = `[${selected || 'link text'}](${url})`;
+        break;
+    }
+
+    // Insert text at selection
+    const before = markdownContent.value.substring(0, start);
+    const after = markdownContent.value.substring(end);
+    markdownContent.value = before + insertText + after;
+
+    // Move cursor to end of inserted text
+    markdownContent.selectionStart = markdownContent.selectionEnd = start + insertText.length;
+    markdownContent.focus();
+    debouncePreview();
+    saveFormCache();
+  });
+});
+
 
 // ---------------------- Preview ----------------------
 function rewriteMarkdownForPreview(mdText) {

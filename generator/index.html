@@ -61,18 +61,20 @@
     </div>
 
     <!-- Markdown toolbar -->
-    <div class="markdown-tools">
-      <button type="button" id="addImageBtn">Add Image</button>
+  <div class="markdown-toolbar">
+    <button type="button" class="format-btn" data-format="bold"><b>B</b></button>
+    <button type="button" class="format-btn" data-format="italic"><i>I</i></button>
+    <button type="button" class="format-btn" data-format="underline"><u>U</u></button>
+    <button type="button" class="format-btn" data-format="link">Link</button>
+    <button type="button" id="addImageBtn">Add Image</button>
+  </div>
 
-      <div id="imageInsertForm" class="image-insert-form" style="display:none;">
-        <input type="file" id="mdImageFile" accept="image/*" />
-        <input type="url" id="mdImageURL" placeholder="Or paste image URL" />
-        <button type="button" id="insertImageMarkdown">Insert Image</button>
-      </div>
-
-      <!-- Inline image list -->
-      <div id="inlineImageList" class="inline-image-list"></div>
-    </div>
+  <!-- Hidden image insert form -->
+  <div id="imageInsertForm" class="image-insert-form" style="display:none;">
+    <input type="file" id="mdImageFile" accept="image/*" />
+    <input type="url" id="mdImageURL" placeholder="Or paste image URL" />
+    <button type="button" id="insertImageMarkdown">Insert Image</button>
+  </div>
 
     <div class="cheat-sheet">
       <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
