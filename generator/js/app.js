@@ -10,9 +10,11 @@ const markdownContent = document.getElementById('markdownContent');
 const preview = document.getElementById('preview');
 const clearImageBtn = document.getElementById('clearImage');
 
+
 // Inline images
 let extraImages = [];
 const extraImageURLs = new Map();
+let featuredImageURLObject = null;  // for featured image
 
 // Featured image
 let featuredImageDataUrl = null;
@@ -25,6 +27,17 @@ function sanitizeFilename(name) {
 
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Convert DataURL back to File
+function dataURLtoFile(dataUrl, filename) {
+  const arr = dataUrl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) u8arr[n] = bstr.charCodeAt(n);
+  return new File([u8arr], filename, { type: mime });
 }
 
 // ---------------------- LocalStorage Cache ----------------------
@@ -62,11 +75,8 @@ featuredImageFileInput.addEventListener('change', () => {
   reader.onload = e => {
     featuredImageDataUrl = e.target.result;
     featuredImageBlob = new File([file], sanitizedName, { type: file.type });
-
-    // Save Base64 for reload
     localStorage.setItem('featuredImageData', e.target.result);
     localStorage.setItem('featuredImageName', sanitizedName);
-
     updatePreview();
     saveFormCache();
   };
@@ -133,7 +143,6 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
     const sanitizedName = sanitizeFilename(file.name);
     extraImages.push({ name: sanitizedName, blob: file });
 
-    // Save Base64 for refresh
     const reader = new FileReader();
     reader.onload = e => {
       localStorage.setItem(`mdImage_${sanitizedName}`, e.target.result);
@@ -169,10 +178,15 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
 // ---------------------- Preview ----------------------
 function rewriteMarkdownForPreview(mdText) {
   if (!extraImages.length) return mdText;
+
+  // Revoke previous URLs to avoid memory leaks
+  extraImageURLs.forEach(url => URL.revokeObjectURL(url));
+  extraImageURLs.clear();
+
   let rewritten = mdText;
   for (const { name, blob } of extraImages) {
-    if (!extraImageURLs.has(name)) extraImageURLs.set(name, URL.createObjectURL(blob));
-    const url = extraImageURLs.get(name);
+    const url = URL.createObjectURL(blob);
+    extraImageURLs.set(name, url);
     rewritten = rewritten.replace(new RegExp(`\\]\\(${escapeRegExp(name)}\\)`, 'g'), `](${url})`);
   }
   return rewritten;
@@ -181,11 +195,19 @@ function rewriteMarkdownForPreview(mdText) {
 function updatePreview() {
   const rawMd = markdownContent.value;
   const mdForPreview = rewriteMarkdownForPreview(rawMd);
+
+  // Revoke previous featured image URL
+  if (featuredImageURLObject) URL.revokeObjectURL(featuredImageURLObject);
+
   const featuredHTML = featuredImageDataUrl
-    ? `<div class="preview-featured"><img src="${featuredImageDataUrl}" alt="Featured Image"></div>`
+    ? `<div class="preview-featured"><img src="${
+        featuredImageDataUrl.startsWith('blob:') ? featuredImageDataUrl : (featuredImageURLObject = URL.createObjectURL(featuredImageBlob))
+      }" alt="Featured Image"></div>`
     : '';
+
   preview.innerHTML = featuredHTML + marked.parse(mdForPreview, { gfm: true, breaks: true });
 }
+
 
 let debounceTimer;
 function debouncePreview() {
@@ -204,13 +226,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const fName = localStorage.getItem('featuredImageName');
   if (fData && fName) {
     featuredImageDataUrl = fData;
-    const arr = fData.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) u8arr[n] = bstr.charCodeAt(n);
-    featuredImageBlob = new File([u8arr], fName, { type: mime });
+    featuredImageBlob = dataURLtoFile(fData, fName);
   }
 
   // Restore inline Markdown images
@@ -219,13 +235,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (key.startsWith('mdImage_')) {
       const dataUrl = localStorage.getItem(key);
       const name = key.replace('mdImage_', '');
-      const arr = dataUrl.split(',');
-      const mime = arr[0].match(/:(.*?);/)[1];
-      const bstr = atob(arr[1]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      while (n--) u8arr[n] = bstr.charCodeAt(n);
-      extraImages.push({ name, blob: new File([u8arr], name, { type: mime }) });
+      extraImages.push({ name, blob: dataURLtoFile(dataUrl, name) });
     }
   });
 
@@ -267,3 +277,54 @@ postForm.addEventListener('submit', async (e) => {
   link.download = `${slug}.zip`;
   link.click();
 });
+
+// --- Clear All Button ---
+const clearAllBtn = document.getElementById('clearAllBtn');
+
+clearAllBtn.addEventListener('click', () => {
+  const confirmed = confirm("Are you sure? This will clear the whole form and cache.");
+  if (!confirmed) return;
+
+  // Clear all form inputs
+  titleInput.value = '';
+  youtubeLinkInput.value = '';
+  featuredImageFileInput.value = '';
+  featuredImageURLInput.value = '';
+  dateInput.value = '';
+  profileInput.value = '';
+  markdownContent.value = '';
+  commitMessageInput.value = 'Add new blog post';
+  ghTokenInput.value = '';
+  ghUserInput.value = '';
+  ghRepoInput.value = '';
+
+  // Clear featured image
+  featuredImageDataUrl = null;
+  featuredImageBlob = null;
+  if (featuredImageURLObject) URL.revokeObjectURL(featuredImageURLObject);
+  featuredImageURLObject = null;
+
+  // Clear inline images
+  extraImages.forEach(img => {
+    const url = extraImageURLs.get(img.name);
+    if (url) URL.revokeObjectURL(url);
+  });
+  extraImages = [];
+  extraImageURLs.clear();
+
+  // Clear localStorage cache
+  localStorage.removeItem('markdownEditorCache');
+  localStorage.removeItem('featuredImageData');
+  localStorage.removeItem('featuredImageName');
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('mdImage_')) localStorage.removeItem(key);
+  });
+
+  // Reset preview
+  updatePreview();
+
+  // Clear GitHub status/progress
+  ghProgress.innerText = '';
+  commitLinkContainer.innerHTML = '';
+});
+
