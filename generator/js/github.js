@@ -24,6 +24,11 @@ function utf8ToBase64(str) {
   return btoa(unescape(encodeURIComponent(str)));
 }
 
+function stripDataUrlPrefix(base64String) {
+  return base64String.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+}
+
+
 // ---------------------- Field Check ----------------------
 function validateGitHubFields() {
   return ghTokenInput.value.trim() && ghUserInput.value.trim() && ghRepoInput.value.trim();
@@ -119,27 +124,29 @@ commitBtn.addEventListener('click', async () => {
 
     // featured image
     if (featuredImageBlob) {
-      const fContent = await toBase64(featuredImageBlob);
-      filesToCommit.push({
+    const fContent = await toBase64(featuredImageBlob); // pure base64
+    filesToCommit.push({
         path: folderPath + featuredImageBlob.name,
         mode: '100644',
         type: 'blob',
-        content: fContent,
-        encoding: 'base64'
-      });
+        content: fContent,       // <-- no data:image prefix
+        encoding: 'base64'       // <-- tell GitHub this is base64
+    });
     }
 
     // extra inline images
     for (const img of extraImages) {
-      const iContent = await toBase64(img.blob);
-      filesToCommit.push({
+    const iContent = await toBase64(img.blob);
+    filesToCommit.push({
         path: folderPath + img.name,
         mode: '100644',
         type: 'blob',
-        content: iContent,
+        content: iContent,       // <-- raw base64 only
         encoding: 'base64'
-      });
+    });
     }
+
+
 
     ghProgress.innerText = 'Creating tree...';
     const treeResp = await fetch(`https://api.github.com/repos/${username}/${repo}/git/trees`, {
