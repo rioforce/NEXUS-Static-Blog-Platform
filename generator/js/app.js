@@ -1,4 +1,4 @@
-// --- References ---
+// ---------------------- References ----------------------
 const postForm = document.getElementById('postForm');
 const titleInput = document.getElementById('title');
 const youtubeLinkInput = document.getElementById('youtubeLink');
@@ -10,26 +10,24 @@ const markdownContent = document.getElementById('markdownContent');
 const preview = document.getElementById('preview');
 const clearImageBtn = document.getElementById('clearImage');
 
-let featuredImageDataUrl = null;
-let featuredImageBlob = null;
-
-// Store additional markdown images
+// Inline images
 let extraImages = [];
 const extraImageURLs = new Map();
 
-// --- Auto-fill date ---
-dateInput.value = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+// Featured image
+let featuredImageDataUrl = null;
+let featuredImageBlob = null;
 
-// --- Sanitize filenames ---
+// ---------------------- Utilities ----------------------
 function sanitizeFilename(name) {
-  return name
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-zA-Z0-9\-.]/g, '')
-    .toLowerCase();
+  return name.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-.]/g, '').toLowerCase();
 }
 
-// --- LocalStorage Cache ---
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ---------------------- LocalStorage Cache ----------------------
 function saveFormCache() {
   const formCache = {
     title: titleInput.value,
@@ -52,18 +50,10 @@ function restoreFormCache() {
     dateInput.value = data.date || dateInput.value;
     profileInput.value = data.profile || '';
     markdownContent.value = data.markdownContent || '';
-    updatePreview();
   }
 }
 
-// Attach input listeners for caching
-[titleInput, youtubeLinkInput, featuredImageURLInput, dateInput, profileInput, markdownContent]
-  .forEach(input => input.addEventListener('input', saveFormCache));
-
-// Restore cache on page load
-window.addEventListener('DOMContentLoaded', restoreFormCache);
-
-// --- Featured Image Handlers ---
+// ---------------------- Featured Image ----------------------
 featuredImageFileInput.addEventListener('change', () => {
   const file = featuredImageFileInput.files[0];
   if (!file) return;
@@ -72,6 +62,11 @@ featuredImageFileInput.addEventListener('change', () => {
   reader.onload = e => {
     featuredImageDataUrl = e.target.result;
     featuredImageBlob = new File([file], sanitizedName, { type: file.type });
+
+    // Save Base64 for reload
+    localStorage.setItem('featuredImageData', e.target.result);
+    localStorage.setItem('featuredImageName', sanitizedName);
+
     updatePreview();
     saveFormCache();
   };
@@ -82,8 +77,8 @@ featuredImageURLInput.addEventListener('input', async () => {
   const url = featuredImageURLInput.value.trim();
   if (!url) return;
   try {
-    const response = await fetch(url);
-    const blob = await response.blob();
+    const resp = await fetch(url);
+    const blob = await resp.blob();
     const originalName = url.split('/').pop().split('?')[0] || 'featuredimage.jpg';
     const sanitizedName = sanitizeFilename(originalName);
     featuredImageBlob = new File([blob], sanitizedName, { type: blob.type });
@@ -100,49 +95,13 @@ clearImageBtn.addEventListener('click', () => {
   featuredImageBlob = null;
   featuredImageFileInput.value = '';
   featuredImageURLInput.value = '';
+  localStorage.removeItem('featuredImageData');
+  localStorage.removeItem('featuredImageName');
   updatePreview();
   saveFormCache();
 });
 
-// Escape regex helper
-function escapeRegExp(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// Rewrite markdown to show object URLs for local images
-function rewriteMarkdownForPreview(mdText) {
-  if (!extraImages.length) return mdText;
-  let rewritten = mdText;
-  for (const { name, blob } of extraImages) {
-    if (!extraImageURLs.has(name)) {
-      extraImageURLs.set(name, URL.createObjectURL(blob));
-    }
-    const url = extraImageURLs.get(name);
-    const pattern = new RegExp(`\\]\\(${escapeRegExp(name)}\\)`, 'g');
-    rewritten = rewritten.replace(pattern, `](${url})`);
-  }
-  return rewritten;
-}
-
-// Update markdown preview
-function updatePreview() {
-  const rawMd = markdownContent.value;
-  const mdForPreview = rewriteMarkdownForPreview(rawMd);
-  const featuredHTML = featuredImageDataUrl
-    ? `<div class="preview-featured"><img src="${featuredImageDataUrl}" alt="Featured Image"></div>`
-    : '';
-  preview.innerHTML = featuredHTML + marked.parse(mdForPreview, { gfm: true, breaks: true });
-}
-
-// Debounce preview updates
-let debounceTimer;
-function debouncePreview() {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(updatePreview, 250);
-}
-markdownContent.addEventListener('input', debouncePreview);
-
-// --- Add Image Tool ---
+// ---------------------- Inline Markdown Images ----------------------
 document.getElementById('addImageBtn').addEventListener('click', () => {
   const form = document.getElementById('imageInsertForm');
   form.style.display = form.style.display === 'none' ? 'block' : 'none';
@@ -151,16 +110,15 @@ document.getElementById('addImageBtn').addEventListener('click', () => {
 document.getElementById('insertImageMarkdown').addEventListener('click', async () => {
   const fileInput = document.getElementById('mdImageFile');
   const urlInput = document.getElementById('mdImageURL');
-  const textarea = markdownContent;
 
   function insertAtCursor(text) {
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const before = textarea.value.substring(0, start);
-    const after = textarea.value.substring(end);
-    textarea.value = before + text + after;
-    textarea.selectionStart = textarea.selectionEnd = start + text.length;
-    textarea.focus();
+    const start = markdownContent.selectionStart;
+    const end = markdownContent.selectionEnd;
+    const before = markdownContent.value.substring(0, start);
+    const after = markdownContent.value.substring(end);
+    markdownContent.value = before + text + after;
+    markdownContent.selectionStart = markdownContent.selectionEnd = start + text.length;
+    markdownContent.focus();
     debouncePreview();
     saveFormCache();
   }
@@ -174,17 +132,31 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
     const file = fileInput.files[0];
     const sanitizedName = sanitizeFilename(file.name);
     extraImages.push({ name: sanitizedName, blob: file });
-    insertAtCursor(`![${altFrom(file.name)}](${sanitizedName})`);
+
+    // Save Base64 for refresh
+    const reader = new FileReader();
+    reader.onload = e => {
+      localStorage.setItem(`mdImage_${sanitizedName}`, e.target.result);
+      insertAtCursor(`![${altFrom(file.name)}](${sanitizedName})`);
+    };
+    reader.readAsDataURL(file);
+
   } else if (urlInput.value.trim()) {
     const url = urlInput.value.trim();
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
+      const resp = await fetch(url);
+      const blob = await resp.blob();
       const originalName = url.split('/').pop().split('?')[0] || 'image.jpg';
       const sanitizedName = sanitizeFilename(originalName);
       extraImages.push({ name: sanitizedName, blob });
-      insertAtCursor(`![${altFrom(originalName)}](${sanitizedName})`);
-    } catch (err) {
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        localStorage.setItem(`mdImage_${sanitizedName}`, e.target.result);
+        insertAtCursor(`![${altFrom(originalName)}](${sanitizedName})`);
+      };
+      reader.readAsDataURL(blob);
+    } catch {
       alert('Failed to fetch image from URL.');
     }
   }
@@ -194,15 +166,78 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
   document.getElementById('imageInsertForm').style.display = 'none';
 });
 
-// --- Form Submit (ZIP Export) ---
+// ---------------------- Preview ----------------------
+function rewriteMarkdownForPreview(mdText) {
+  if (!extraImages.length) return mdText;
+  let rewritten = mdText;
+  for (const { name, blob } of extraImages) {
+    if (!extraImageURLs.has(name)) extraImageURLs.set(name, URL.createObjectURL(blob));
+    const url = extraImageURLs.get(name);
+    rewritten = rewritten.replace(new RegExp(`\\]\\(${escapeRegExp(name)}\\)`, 'g'), `](${url})`);
+  }
+  return rewritten;
+}
+
+function updatePreview() {
+  const rawMd = markdownContent.value;
+  const mdForPreview = rewriteMarkdownForPreview(rawMd);
+  const featuredHTML = featuredImageDataUrl
+    ? `<div class="preview-featured"><img src="${featuredImageDataUrl}" alt="Featured Image"></div>`
+    : '';
+  preview.innerHTML = featuredHTML + marked.parse(mdForPreview, { gfm: true, breaks: true });
+}
+
+let debounceTimer;
+function debouncePreview() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(updatePreview, 250);
+}
+
+markdownContent.addEventListener('input', debouncePreview);
+
+// ---------------------- Cache Restore ----------------------
+window.addEventListener('DOMContentLoaded', () => {
+  restoreFormCache();
+
+  // Restore featured image
+  const fData = localStorage.getItem('featuredImageData');
+  const fName = localStorage.getItem('featuredImageName');
+  if (fData && fName) {
+    featuredImageDataUrl = fData;
+    const arr = fData.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    featuredImageBlob = new File([u8arr], fName, { type: mime });
+  }
+
+  // Restore inline Markdown images
+  extraImages = [];
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('mdImage_')) {
+      const dataUrl = localStorage.getItem(key);
+      const name = key.replace('mdImage_', '');
+      const arr = dataUrl.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) u8arr[n] = bstr.charCodeAt(n);
+      extraImages.push({ name, blob: new File([u8arr], name, { type: mime }) });
+    }
+  });
+
+  updatePreview();
+});
+
+// ---------------------- Form Submit (ZIP) ----------------------
 postForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   localStorage.removeItem('markdownEditorCache');
 
-  const slug = titleInput.value
-    .replace(/\s+/g, '-')
-    .replace(/[^a-zA-Z0-9\-]/g, '')
-    .toLowerCase();
+  const slug = titleInput.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '').toLowerCase();
   const zip = new JSZip();
 
   zip.file('postinfo.json', JSON.stringify({
