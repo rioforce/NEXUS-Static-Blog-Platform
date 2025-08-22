@@ -39,11 +39,15 @@
   <div class="container">
     <!-- Editor + Toolbar -->
     <div class="flex-half editor-column">
-      <div class="markdown-toolbar">
-        <button type="button" class="format-btn" data-format="bold"><b>B</b></button>
-        <button type="button" class="format-btn" data-format="italic"><i>I</i></button>
-        <button type="button" class="format-btn" data-format="underline"><u>U</u></button>
-      </div>
+      <div class="markdown-tools">
+        <button type="button" id="btnH1">H1</button>
+        <button type="button" id="btnH2">H2</button>
+        <button type="button" id="btnH3">H3</button>
+        <button type="button" id="btnBold"><b>B</b></button>
+        <button type="button" id="btnItalic"><i>I</i></button>
+        <button type="button" id="btnUnderline"><u>U</u></button>
+    </div>
+
 
       <textarea id="markdownContent" placeholder="Type your Markdown content here..." required></textarea>
 

@@ -277,6 +277,31 @@ clearAllBtn.addEventListener('click', () => {
   localStorage.removeItem('markdownEditorCache');
 });
 
+// ---------------------- Markdown Formatting Tools ----------------------
+
+function insertAtCursor(text) {
+  const start = markdownContent.selectionStart;
+  const end = markdownContent.selectionEnd;
+  const before = markdownContent.value.substring(0, start);
+  const after = markdownContent.value.substring(end);
+  markdownContent.value = before + text + after;
+  markdownContent.selectionStart = markdownContent.selectionEnd = start + text.length;
+  markdownContent.focus();
+  debouncePreview();
+  saveFormCache();
+}
+
+// Heading buttons
+document.getElementById('btnH1').addEventListener('click', () => insertAtCursor('# '));
+document.getElementById('btnH2').addEventListener('click', () => insertAtCursor('## '));
+document.getElementById('btnH3').addEventListener('click', () => insertAtCursor('### '));
+
+// Bold, Italic, Underline buttons
+document.getElementById('btnBold').addEventListener('click', () => insertAtCursor('**bold text**'));
+document.getElementById('btnItalic').addEventListener('click', () => insertAtCursor('*italic text*'));
+document.getElementById('btnUnderline').addEventListener('click', () => insertAtCursor('<u>underlined text</u>'));
+
+
 // ---------------------- DOMContentLoaded ----------------------
 window.addEventListener('DOMContentLoaded', () => {
   restoreFormCache();

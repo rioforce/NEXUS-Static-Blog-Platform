@@ -46,14 +46,14 @@ form {
 .top-fields input { width: 50%; }
 
 /* Markdown toolbar */
-.markdown-toolbar {
+.markdown-tools {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
   margin-bottom: 8px;
 }
 
-.markdown-toolbar button {
+.markdown-tools button {
   flex: 1 1 auto;
   padding: 6px 10px;
   font-size: 14px;
@@ -70,7 +70,6 @@ form {
 .markdown-tools {
   text-align: left;  /* now left aligned */
   margin-bottom: 6px;
-  width: 50%;
 }
 
 .markdown-tools button {
