@@ -14,6 +14,7 @@ const mdImageURLInput = document.getElementById('mdImageURL');
 const insertImageMarkdownBtn = document.getElementById('insertImageMarkdown');
 const clearAllBtn = document.getElementById('clearAll');
 const inlineImageList = document.getElementById('inlineImageList');
+const MAX_CACHE_SIZE = 2 * 1024 * 1024; // 2 MB limit
 
 // ---------------------- State ----------------------
 let featuredImageDataUrl = null;
@@ -60,6 +61,17 @@ function restoreFormCache() {
 featuredImageFileInput.addEventListener('change', () => {
   const file = featuredImageFileInput.files[0];
   if (!file) return;
+
+ if (file.size > MAX_CACHE_SIZE) {
+    // Too big for localStorage: preview only
+    featuredImageDataUrl = URL.createObjectURL(file);
+    featuredImageBlob = file;
+    alert('Image too large to cache locally. It will still appear in preview.');
+    updatePreview();
+    saveFormCache(); // saves everything else
+    return;
+  }
+
   const sanitizedName = sanitizeFilename(file.name);
   const reader = new FileReader();
   reader.onload = e => {
