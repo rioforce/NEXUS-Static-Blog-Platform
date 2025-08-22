@@ -10,54 +10,70 @@
   <h1>Blog Post Generator with Markdown Preview</h1>
 
   <form id="postForm">
-    <label for="title">Title:</label>
-    <input type="text" id="title" required />
+  <label for="title">Title:</label>
+  <input type="text" id="title" required />
 
-    <label for="youtubeLink">YouTube Link:</label>
-    <input type="url" id="youtubeLink" />
+  <label for="youtubeLink">YouTube Link:</label>
+  <input type="url" id="youtubeLink" />
 
-    <label>Featured Image:</label>
-    <input type="file" id="featuredImageFile" accept="image/*" />
-    <input type="url" id="featuredImageURL" placeholder="Or paste a direct image URL" />
-    <div class="image-note">You can select a local file or paste a URL from online.</div>
-    <div class="image-buttons">
-      <button type="button" id="clearImage">Clear Featured Image</button>
+  <label>Featured Image:</label>
+  <input type="file" id="featuredImageFile" accept="image/*" />
+  <input type="url" id="featuredImageURL" placeholder="Or paste a direct image URL" />
+  <div class="image-note">You can select a local file or paste a URL from online.</div>
+  <div class="image-buttons">
+    <button type="button" id="clearImage">Clear Featured Image</button>
+  </div>
+
+  <label for="date">Date:</label>
+  <input type="text" id="date" required />
+
+  <label for="profile">Profile Name:</label>
+  <input type="text" id="profile" value="rioforce" />
+
+  <!-- GitHub commit fields -->
+  <label for="githubUsername">GitHub Username:</label>
+  <input type="text" id="githubUsername" placeholder="Your GitHub username" />
+
+  <label for="githubRepo">GitHub Repo:</label>
+  <input type="text" id="githubRepo" placeholder="Repository name" />
+
+  <label for="githubToken">GitHub Token:</label>
+  <input type="text" id="githubToken" placeholder="Personal Access Token (session only)" />
+  <div style="text-align:center; margin-bottom:10px;">
+    <a href="https://github.com/settings/personal-access-tokens" target="_blank" style="font-size:0.9em;">
+      Find or create your tokens here
+    </a>
+  </div>
+
+  <label for="githubMessage">Commit Message:</label>
+  <input type="text" id="githubMessage" placeholder="Commit message" value="Add new blog post" />
+
+  <div class="container">
+    <div class="flex-half">
+      <label for="markdownContent">Content (Markdown):</label>
+      <textarea id="markdownContent" placeholder="Type your Markdown content here..." required></textarea>
     </div>
 
-    <label for="date">Date:</label>
-    <input type="text" id="date" required />
+    <div class="flex-half">
+      <label>Preview:</label>
+      <div id="preview" class="preview"></div>
+    </div>
 
-    <label for="profile">Profile Name:</label>
-    <input type="text" id="profile" value="rioforce" />
+    <!-- Markdown toolbar -->
+    <div class="markdown-tools">
+      <button type="button" id="addImageBtn">Add Image</button>
 
-
-    <div class="container">
-      <div class="flex-half">
-        <label for="markdownContent">Content (Markdown):</label>
-        <textarea id="markdownContent" placeholder="Type your Markdown content here..." required></textarea>
+      <!-- Hidden image insert form -->
+      <div id="imageInsertForm" class="image-insert-form" style="display:none;">
+        <input type="file" id="mdImageFile" accept="image/*" />
+        <input type="url" id="mdImageURL" placeholder="Or paste image URL" />
+        <button type="button" id="insertImageMarkdown">Insert Image</button>
       </div>
+    </div>
 
-
-      <div class="flex-half">
-        <label>Preview:</label>
-        <div id="preview" class="preview"></div>
-      </div>
-
-          <!-- 🔧 Markdown toolbar (left aligned now) -->
-          <div class="markdown-tools">
-            <button type="button" id="addImageBtn">Add Image</button>
-
-          <!-- 🔻 Hidden image insert form -->
-            <div id="imageInsertForm" class="image-insert-form" style="display:none;">
-            <input type="file" id="mdImageFile" accept="image/*" />
-            <input type="url" id="mdImageURL" placeholder="Or paste image URL" />
-            <button type="button" id="insertImageMarkdown">Insert Image</button>
-          </div>
-          </div>
-
-              <div class="cheat-sheet">
-            <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
-            <div class="cheat-sheet-content" id="cheatSheet">
+    <div class="cheat-sheet">
+      <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
+      <div class="cheat-sheet-content" id="cheatSheet">
 # Headings
 # H1
 ## H2
@@ -76,12 +92,18 @@ Images: ![alt text](url)
 
 Blockquote: > quote
 Inline code: `code`
-</div>
       </div>
     </div>
+  </div>
 
-    <button type="submit" class="generate-btn">Generate Blog Post</button>
-  </form>
+  <!-- Buttons group -->
+  <div class="button-group">
+    <button type="submit" class="generate-btn">Generate Blog Post (ZIP)</button>
+    <button type="button" id="commitGithubBtn" class="generate-btn" disabled>Commit to GitHub</button>
+  </div>
+  <div id="githubProgress" style="margin-top:10px; font-family: monospace;"></div>
+</form>
+
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>

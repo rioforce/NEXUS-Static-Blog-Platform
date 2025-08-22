@@ -257,3 +257,120 @@ postForm.addEventListener('submit', async (e) => {
   link.download = `${slug}.zip`;
   link.click();
 });
+
+// --- GitHub Commit Integration ---
+const githubUsernameInput = document.getElementById('githubUsername');
+const githubRepoInput = document.getElementById('githubRepo');
+const githubTokenInput = document.getElementById('githubToken');
+const githubMessageInput = document.getElementById('githubMessage');
+const commitBtn = document.getElementById('commitGithubBtn');
+
+// Restore token from sessionStorage
+if (sessionStorage.getItem('githubToken')) {
+  githubTokenInput.value = sessionStorage.getItem('githubToken');
+}
+
+// Enable/disable commit button
+function updateCommitButtonState() {
+  commitBtn.disabled = !(
+    githubUsernameInput.value.trim() &&
+    githubRepoInput.value.trim() &&
+    githubTokenInput.value.trim() &&
+    githubMessageInput.value.trim()
+  );
+}
+[githubUsernameInput, githubRepoInput, githubTokenInput, githubMessageInput].forEach(input => {
+  input.addEventListener('input', () => {
+    // store token in session
+    if (input === githubTokenInput) sessionStorage.setItem('githubToken', input.value.trim());
+    updateCommitButtonState();
+  });
+});
+updateCommitButtonState();
+
+// GitHub API commit function
+async function commitFileToGitHub(owner, repo, path, content, message, token, sha = null) {
+  const encodedContent = btoa(unescape(encodeURIComponent(content)));
+  const body = { message, content: encodedContent };
+  if (sha) body.sha = sha;
+
+  const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    method: 'PUT',
+    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.message || 'GitHub commit failed');
+  }
+  return resp.json();
+}
+
+// Handle Commit to GitHub
+commitBtn.addEventListener('click', async () => {
+  commitBtn.disabled = true;
+
+  const owner = githubUsernameInput.value.trim();
+  const repo = githubRepoInput.value.trim();
+  const token = githubTokenInput.value.trim();
+  const message = githubMessageInput.value.trim();
+
+  const slug = sanitizeFilename(titleInput.value);
+  const postPath = `blog/posts/${slug}.md`;
+
+  try {
+    // Commit markdown
+    let sha;
+    try {
+      const checkResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${postPath}`, {
+        headers: { Authorization: `token ${token}` }
+      });
+      if (checkResp.ok) {
+        const data = await checkResp.json();
+        sha = data.sha;
+      }
+    } catch {}
+
+    await commitFileToGitHub(owner, repo, postPath, markdownContent.value, message, token, sha);
+
+    // Commit featured image if present
+    if (featuredImageBlob) {
+      const imgPath = `blog/posts/${featuredImageBlob.name}`;
+      let imgSha;
+      try {
+        const checkImg = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${imgPath}`, {
+          headers: { Authorization: `token ${token}` }
+        });
+        if (checkImg.ok) {
+          const data = await checkImg.json();
+          imgSha = data.sha;
+        }
+      } catch {}
+      await commitFileToGitHub(owner, repo, imgPath, await featuredImageBlob.text(), message, token, imgSha);
+    }
+
+    // Commit extra markdown images
+    for (const img of extraImages) {
+      const imgPath = `blog/posts/${img.name}`;
+      let imgSha;
+      try {
+        const checkImg = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${imgPath}`, {
+          headers: { Authorization: `token ${token}` }
+        });
+        if (checkImg.ok) {
+          const data = await checkImg.json();
+          imgSha = data.sha;
+        }
+      } catch {}
+      await commitFileToGitHub(owner, repo, imgPath, await img.blob.text(), message, token, imgSha);
+    }
+
+    alert('All files committed successfully!');
+  } catch (err) {
+    console.error(err);
+    alert('GitHub commit failed: ' + err.message);
+  } finally {
+    updateCommitButtonState();
+  }
+});

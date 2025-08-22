@@ -298,28 +298,57 @@ textarea::-webkit-scrollbar-thumb,
   input[type="file"] { width: 100%; } /* go full width on mobile for ease */
 }
 
-/* Floating generate button */
-.generate-btn {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Container for the buttons */
+button.generate-btn {
+  display: inline-block;
+  margin: 10px 10px 0 0; /* small right margin between buttons */
   background-color: var(--primary);
   color: white;
-  padding: 16px 28px; /* bigger padding */
-  font-size: 1.2rem;  /* bigger font size */
+  padding: 16px 28px;
+  font-size: 1.1rem;
   border: none;
   border-radius: 12px;
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-  z-index: 999;
+  vertical-align: middle;
 }
 
-.generate-btn:hover {
+button.generate-btn:hover {
   background-color: var(--primary-hover);
+}
+
+/* Button container wrapper to center both */
+#postForm > .button-group {
+  text-align: center;
+  margin-top: 15px;
+}
+
+/* Adjust mobile view */
+@media (max-width: 768px) {
+  #postForm > .button-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  button.generate-btn {
+    width: 80%;
+    margin: 5px 0;
+  }
 }
 
 /* Extra padding at bottom so last content isn't hidden behind button */
 form {
   padding-bottom: 80px;
 }
+
+#githubProgress {
+  border: 1px solid #ccc;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f7f7f7;
+  font-family: monospace;
+  white-space: pre-wrap;
+  margin-top: 10px;
+}
+
