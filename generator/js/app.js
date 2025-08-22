@@ -254,8 +254,12 @@ function removeInlineImage(name) {
   saveFormCache();
 }
 
+const MAX_IMAGE_SIZE = 1024 * 1024 * 2; // 2MB example
+const inlineImageWarning = document.getElementById('inlineImageWarning'); // make a div for this in your HTML
+
 function renderInlineImages() {
   inlineImageList.innerHTML = '';
+  let hasLargeImages = false;
 
   if (extraImages.length === 0) {
     const placeholder = document.createElement('div');
@@ -303,8 +307,31 @@ function renderInlineImages() {
     removeBtn.addEventListener('click', () => removeInlineImage(img.name));
     wrapper.appendChild(removeBtn);
 
+    // ⚠️ warning for large images
+    if (img.blob.size > MAX_IMAGE_SIZE) {
+      hasLargeImages = true;
+      const warning = document.createElement('div');
+      warning.textContent = '⚠️';
+      warning.title = 'This image is too large';
+      warning.style.position = 'absolute';
+      warning.style.bottom = '2px';
+      warning.style.right = '2px';
+      warning.style.fontSize = '18px';
+      wrapper.appendChild(warning);
+    }
+
     inlineImageList.appendChild(wrapper);
   });
+
+  // Persistent page-level warning
+  if (hasLargeImages) {
+    inlineImageWarning.style.display = 'block';
+    inlineImageWarning.textContent = '⚠️ Image is too large to cache and will not persist on refresh';
+    inlineImageWarning.style.color = 'red';
+    inlineImageWarning.style.marginTop = '6px';
+  } else {
+    inlineImageWarning.style.display = 'none';
+  }
 }
 
 // ---------------------- Clear All ----------------------
