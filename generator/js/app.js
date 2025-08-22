@@ -29,6 +29,42 @@ function sanitizeFilename(name) {
     .toLowerCase();
 }
 
+// --- LocalStorage Cache ---
+function saveFormCache() {
+  const formCache = {
+    title: titleInput.value,
+    youtubeLink: youtubeLinkInput.value,
+    featuredImageURL: featuredImageURLInput.value,
+    date: dateInput.value,
+    profile: profileInput.value,
+    markdownContent: markdownContent.value
+  };
+  localStorage.setItem('markdownEditorCache', JSON.stringify(formCache));
+}
+
+function restoreFormCache() {
+  const saved = localStorage.getItem('markdownEditorCache');
+  if (saved) {
+    const data = JSON.parse(saved);
+    titleInput.value = data.title || '';
+    youtubeLinkInput.value = data.youtubeLink || '';
+    featuredImageURLInput.value = data.featuredImageURL || '';
+    dateInput.value = data.date || dateInput.value;
+    profileInput.value = data.profile || '';
+    markdownContent.value = data.markdownContent || '';
+    updatePreview();
+  }
+}
+
+// Attach input listeners for caching
+[titleInput, youtubeLinkInput, featuredImageURLInput, dateInput, profileInput, markdownContent]
+  .forEach(input => {
+    input.addEventListener('input', saveFormCache);
+  });
+
+// Restore cache on page load
+window.addEventListener('DOMContentLoaded', restoreFormCache);
+
 // --- Featured Image Handlers ---
 featuredImageFileInput.addEventListener('change', () => {
   const file = featuredImageFileInput.files[0];
@@ -135,6 +171,7 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
     textarea.selectionStart = textarea.selectionEnd = start + text.length;
     textarea.focus();
     debouncePreview();
+    saveFormCache(); // Also save after inserting image
   }
 
   function altFrom(nameOrUrl) {
@@ -169,6 +206,9 @@ document.getElementById('insertImageMarkdown').addEventListener('click', async (
 // --- Form submit ---
 postForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+
+  // Clear cache on export
+  localStorage.removeItem('markdownEditorCache');
 
   const postinfo = {
     title: titleInput.value,
