@@ -1,51 +1,51 @@
-// --- References ---
-const ghTokenInput = document.getElementById('ghToken');
-const ghUserInput = document.getElementById('ghUsername');
-const ghRepoInput = document.getElementById('ghRepo');
-const commitBtn = document.getElementById('commitBtn');
-const commitMessageInput = document.getElementById('commitMessage');
-const ghProgress = document.getElementById('ghProgress');
-const commitLinkContainer = document.getElementById('commitLink');
+// github.js
+export async function commitToGitHub({
+  token,
+  username,
+  repo,
+  title,
+  markdown,
+  youtubeLink,
+  date,
+  profile,
+  featuredImageBlob,
+  extraImages
+}) {
+  const ghProgress = document.getElementById('ghProgress');
+  const commitLinkContainer = document.getElementById('commitLink');
 
-// --- Helper: Base64 encode files for GitHub ---
-async function toBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]); // only base64 part
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+  // --- Helper: Base64 encode files for GitHub ---
+  async function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]); // only base64 part
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
-// Helper: create GitHub blob and return SHA
-async function createGitHubBlob(owner, repo, token, base64Content) {
-  const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
-    method: 'POST',
-    headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: base64Content, encoding: 'base64' })
-  });
-  const data = await resp.json();
-  if (!data.sha) throw new Error('Failed to create blob on GitHub');
-  return data.sha;
-}
-
-// --- Commit to GitHub ---
-commitBtn.addEventListener('click', async () => {
-  const token = ghTokenInput.value.trim();
-  const username = ghUserInput.value.trim();
-  const repo = ghRepoInput.value.trim();
-  const message = commitMessageInput.value.trim() || `New blog post: ${titleInput.value}`;
+  // Helper: create GitHub blob and return SHA
+  async function createGitHubBlob(owner, repo, token, base64Content) {
+    const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
+      method: 'POST',
+      headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: base64Content, encoding: 'base64' })
+    });
+    const data = await resp.json();
+    if (!data.sha) throw new Error('Failed to create blob on GitHub');
+    return data.sha;
+  }
 
   if (!token || !username || !repo) {
     ghProgress.innerText = 'Please fill GitHub token, username, and repo.';
     return;
   }
 
-  commitBtn.disabled = true;
   ghProgress.innerText = 'Starting commit...';
 
-  const slug = titleInput.value.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '').toLowerCase();
+  const slug = title.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-]/g, '').toLowerCase();
   const folderPath = `posts/${slug}/`;
+  const message = `New blog post: ${title}`;
 
   try {
     // 1. Get latest commit SHA and tree SHA
@@ -69,17 +69,17 @@ commitBtn.addEventListener('click', async () => {
       path: folderPath + 'content.md',
       mode: '100644',
       type: 'blob',
-      content: markdownContent.value
+      content: markdown
     });
 
     // postinfo.json
     const postJSON = JSON.stringify({
-      title: titleInput.value,
-      youtubeLink: youtubeLinkInput.value,
+      title,
+      youtubeLink,
       featuredImage: featuredImageBlob ? `./${featuredImageBlob.name}` : '',
-      date: dateInput.value,
+      date,
       content: 'content.md',
-      profile: profileInput.value
+      profile
     }, null, 4);
     filesToCommit.push({
       path: folderPath + 'postinfo.json',
@@ -159,7 +159,6 @@ commitBtn.addEventListener('click', async () => {
     console.error('GitHub commit failed:', err);
     ghProgress.innerText = 'Commit failed! Check console.';
   } finally {
-    commitBtn.disabled = false;
     localStorage.removeItem('markdownEditorCache');
   }
-});
+}
