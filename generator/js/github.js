@@ -1,49 +1,28 @@
 // --- References ---
-const ghTokenInput = document.getElementById('ghToken');
-const ghUserInput = document.getElementById('ghUsername');
-const ghRepoInput = document.getElementById('ghRepo');
-const commitBtn = document.getElementById('commitBtn');
+const ghTokenInput = document.getElementById('ghToken');      // your token input
+const ghUserInput = document.getElementById('ghUsername');    // GitHub username
+const ghRepoInput = document.getElementById('ghRepo');        // Repo name
+const commitBtn = document.getElementById('commitBtn');       // Commit button
 const commitMessageInput = document.getElementById('commitMessage');
-const ghProgress = document.getElementById('ghProgress');
+const ghProgress = document.getElementById('ghProgress');     // optional progress div
 const commitLinkContainer = document.getElementById('commitLink');
-
-// --- Enable/Disable Commit Button Only if All GitHub Fields Are Filled ---
-function updateCommitBtnState() {
-  const token = ghTokenInput.value.trim();
-  const username = ghUserInput.value.trim();
-  const repo = ghRepoInput.value.trim();
-
-  const allFilled = token && username && repo;
-  commitBtn.disabled = !allFilled;
-
-  if (!allFilled) {
-    ghProgress.innerText = 'Please fill out GitHub token, username, and repository.';
-  } else {
-    ghProgress.innerText = ''; // clear message if all fields are filled
-  }
-}
-
-// Update the button state whenever the user types in any GitHub input
-[ghTokenInput, ghUserInput, ghRepoInput].forEach(input =>
-  input.addEventListener('input', updateCommitBtnState)
-);
-
-// Set initial state on page load
-updateCommitBtnState();
-
-
 
 // --- Helper: Base64 encode files ---
 async function toBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onload = () => resolve(reader.result.split(',')[1]); // only keep base64 part
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-// Helper: create blob on GitHub and return sha
+// Helper: UTF-8 to Base64
+function utf8ToBase64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+// Helper: create GitHub blob and return sha
 async function createGitHubBlob(owner, repo, token, base64Content) {
   console.log(`Creating blob in repo ${owner}/${repo}...`);
   const blobResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
@@ -66,19 +45,18 @@ commitBtn.addEventListener('click', async () => {
   const repo = ghRepoInput.value.trim();
   const message = commitMessageInput.value.trim() || `New blog post: ${titleInput.value}`;
 
-  // Check required GitHub fields
+  // Check required GitHub fields on click
   if (!token || !username || !repo) {
     ghProgress.innerText = 'Please fill out GitHub token, username, and repository.';
     console.error('Missing required GitHub fields', { token, username, repo });
-    return; // stop execution
+    return;
   }
 
-  // If all fields are filled, clear any previous message
+  // Clear any previous message
   ghProgress.innerText = '';
 
   commitBtn.disabled = true;
   ghProgress.innerText = 'Starting commit...';
-  console.log('Starting commit process...');
 
   const slug = titleInput.value
     .replace(/\s+/g, '-')
@@ -104,9 +82,10 @@ commitBtn.addEventListener('click', async () => {
     console.log('Commit data:', commitData);
     const baseTreeSHA = commitData.tree.sha;
 
+    // Prepare files to commit
     const filesToCommit = [];
 
-    console.log('Preparing text files...');
+    // content.md
     filesToCommit.push({
       path: folderPath + 'content.md',
       mode: '100644',
@@ -114,6 +93,7 @@ commitBtn.addEventListener('click', async () => {
       content: markdownContent.value
     });
 
+    // postinfo.json
     const postJSON = JSON.stringify({
       title: titleInput.value,
       youtubeLink: youtubeLinkInput.value,
@@ -122,7 +102,6 @@ commitBtn.addEventListener('click', async () => {
       content: 'content.md',
       profile: profileInput.value
     }, null, 4);
-
     filesToCommit.push({
       path: folderPath + 'postinfo.json',
       mode: '100644',
@@ -130,6 +109,7 @@ commitBtn.addEventListener('click', async () => {
       content: postJSON
     });
 
+    // index.html if exists
     try {
       const indexResp = await fetch('blog/index.html');
       if (indexResp.ok) {
@@ -145,6 +125,7 @@ commitBtn.addEventListener('click', async () => {
       console.warn('Skipping index.html fetch:', err);
     }
 
+    // Featured image
     if (featuredImageBlob) {
       console.log('Processing featured image...');
       const fContent = await toBase64(featuredImageBlob);
@@ -157,6 +138,7 @@ commitBtn.addEventListener('click', async () => {
       });
     }
 
+    // Extra images
     for (const img of extraImages) {
       console.log(`Processing extra image: ${img.name}`);
       const iContent = await toBase64(img.blob);
@@ -202,6 +184,9 @@ commitBtn.addEventListener('click', async () => {
     const commitUrl = `https://github.com/${username}/${repo}/tree/main/${folderPath}`;
     commitLinkContainer.innerHTML = `<a href="${commitUrl}" target="_blank">View your post on GitHub</a>`;
     console.log('Commit complete!');
+
+    // Re-enable button for next commit
+    commitBtn.disabled = false;
 
     localStorage.removeItem('markdownEditorCache');
 
