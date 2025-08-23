@@ -1,7 +1,9 @@
 import { restoreFormCache, saveFormCache } from './utils.js';
 import {
-  featuredImageDataUrl,
-  featuredImageBlob,
+  getFeaturedImageDataUrl,
+  getFeaturedImageBlob,
+  setFeaturedImageDataUrl,
+  setFeaturedImageBlob,
   extraImages,
   extraImageURLs,
   setupFeaturedImage,
@@ -10,23 +12,7 @@ import {
   renderInlineImages,
   rewriteMarkdownForPreview
 } from './images.js';
-
 import { commitToGitHub } from './github.js';
-
-document.getElementById('commitBtn').addEventListener('click', () => {
-  commitToGitHub({
-    token: document.getElementById('ghToken').value.trim(),
-    username: document.getElementById('ghUsername').value.trim(),
-    repo: document.getElementById('ghRepo').value.trim(),
-    title: document.getElementById('title').value,
-    markdown: document.getElementById('markdownContent').value,
-    youtubeLink: document.getElementById('youtubeLink').value,
-    date: document.getElementById('date').value,
-    profile: document.getElementById('profile').value,
-    featuredImageBlob, // comes from images.js
-    extraImages        // comes from images.js
-  });
-});
 
 const postForm = document.getElementById('postForm');
 const titleInput = document.getElementById('title');
@@ -50,8 +36,8 @@ let debounceTimer = null;
 
 function updatePreview() {
   const mdForPreview = rewriteMarkdownForPreview(markdownContent.value);
-  const featuredHTML = featuredImageDataUrl
-    ? `<div class="preview-featured"><img src="${featuredImageDataUrl}" alt="Featured Image"></div>`
+  const featuredHTML = getFeaturedImageDataUrl()
+    ? `<div class="preview-featured"><img src="${getFeaturedImageDataUrl()}" alt="Featured Image"></div>`
     : '';
   preview.innerHTML = featuredHTML + marked.parse(mdForPreview, { gfm: true, breaks: true });
 }
@@ -82,8 +68,8 @@ clearAllBtn.addEventListener('click', () => {
   postForm.reset();
 
   // Featured image
-  featuredImageDataUrl = null;
-  featuredImageBlob = null;
+  setFeaturedImageDataUrl(null);
+  setFeaturedImageBlob(null);
   localStorage.removeItem('featuredImageData');
   localStorage.removeItem('featuredImageName');
 
@@ -101,6 +87,22 @@ clearAllBtn.addEventListener('click', () => {
   localStorage.removeItem('markdownEditorCache');
 });
 
+// ---------------------- Commit Button ----------------------
+document.getElementById('commitBtn').addEventListener('click', () => {
+  commitToGitHub({
+    token: document.getElementById('ghToken').value.trim(),
+    username: document.getElementById('ghUsername').value.trim(),
+    repo: document.getElementById('ghRepo').value.trim(),
+    title: titleInput.value,
+    markdown: markdownContent.value,
+    youtubeLink: youtubeLinkInput.value,
+    date: dateInput.value,
+    profile: profileInput.value,
+    featuredImageBlob: getFeaturedImageBlob(),
+    extraImages
+  });
+});
+
 // ---------------------- DOMContentLoaded ----------------------
 window.addEventListener('DOMContentLoaded', () => {
   restoreFormCache({
@@ -112,17 +114,17 @@ window.addEventListener('DOMContentLoaded', () => {
     markdownContent
   });
 
-  // Restore featured image
+  // Restore featured image from localStorage
   const fData = localStorage.getItem('featuredImageData');
   const fName = localStorage.getItem('featuredImageName');
   if (fData && fName) {
-    featuredImageDataUrl = fData;
+    setFeaturedImageDataUrl(fData);
     const arr = fData.split(',');
     const mime = arr[0].match(/:(.*?);/)[1];
     const bstr = atob(arr[1]);
     const u8arr = new Uint8Array(bstr.length);
     for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
-    featuredImageBlob = new File([u8arr], fName, { type: mime });
+    setFeaturedImageBlob(new File([u8arr], fName, { type: mime }));
   }
 
   // Restore inline images

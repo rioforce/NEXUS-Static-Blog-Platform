@@ -14,7 +14,11 @@ export function saveFormCache(formData) {
 
 export function restoreFormCache(inputs) {
   const saved = localStorage.getItem('markdownEditorCache');
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const today = new Date().toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+    }); // e.g., "August 22, 2025"
   if (!saved) {
     inputs.date.value = today;
     return;

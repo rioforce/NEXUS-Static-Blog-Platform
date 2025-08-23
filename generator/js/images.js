@@ -1,8 +1,24 @@
-import { sanitizeFilename, escapeRegExp, saveFormCache } from './utils.js';
+import { sanitizeFilename, escapeRegExp } from './utils.js';
 
-// ---------------------- State ----------------------
-export let featuredImageDataUrl = null;
-export let featuredImageBlob = null;
+// ---------------------- State (internal) ----------------------
+let _featuredImageDataUrl = null;
+let _featuredImageBlob = null;
+
+export function getFeaturedImageDataUrl() {
+  return _featuredImageDataUrl;
+}
+export function setFeaturedImageDataUrl(dataUrl) {
+  _featuredImageDataUrl = dataUrl;
+}
+
+export function getFeaturedImageBlob() {
+  return _featuredImageBlob;
+}
+export function setFeaturedImageBlob(blob) {
+  _featuredImageBlob = blob;
+}
+
+// ---------------------- Inline Images ----------------------
 export let extraImages = [];
 export const extraImageURLs = new Map();
 
@@ -18,11 +34,12 @@ export function setupFeaturedImage(fileInput, urlInput, warningEl, updatePreview
 
 async function handleFeaturedFile(file, warningEl, updatePreviewCb) {
   if (!file) return;
+
   const sanitizedName = sanitizeFilename(file.name);
   const reader = new FileReader();
   reader.onload = e => {
-    featuredImageDataUrl = e.target.result;
-    featuredImageBlob = new File([file], sanitizedName, { type: file.type });
+    setFeaturedImageDataUrl(e.target.result);
+    setFeaturedImageBlob(new File([file], sanitizedName, { type: file.type }));
 
     if (file.size <= MAX_FEATURED_CACHE_SIZE) {
       localStorage.setItem('featuredImageData', e.target.result);
@@ -42,13 +59,15 @@ async function handleFeaturedFile(file, warningEl, updatePreviewCb) {
 
 async function handleFeaturedURL(url, warningEl, updatePreviewCb) {
   if (!url) return;
+
   try {
     const resp = await fetch(url);
     const blob = await resp.blob();
     const originalName = url.split('/').pop().split('?')[0] || 'featuredimage.jpg';
     const sanitizedName = sanitizeFilename(originalName);
-    featuredImageBlob = new File([blob], sanitizedName, { type: blob.type });
-    featuredImageDataUrl = URL.createObjectURL(featuredImageBlob);
+
+    setFeaturedImageBlob(new File([blob], sanitizedName, { type: blob.type }));
+    setFeaturedImageDataUrl(URL.createObjectURL(getFeaturedImageBlob()));
 
     if (blob.size <= MAX_FEATURED_CACHE_SIZE) {
       const reader = new FileReader();
@@ -73,8 +92,8 @@ async function handleFeaturedURL(url, warningEl, updatePreviewCb) {
 }
 
 export function clearFeaturedImage(fileInput, urlInput, warningEl, updatePreviewCb) {
-  featuredImageDataUrl = null;
-  featuredImageBlob = null;
+  setFeaturedImageDataUrl(null);
+  setFeaturedImageBlob(null);
   fileInput.value = '';
   urlInput.value = '';
   localStorage.removeItem('featuredImageData');
@@ -85,12 +104,13 @@ export function clearFeaturedImage(fileInput, urlInput, warningEl, updatePreview
 
 // ---------------------- Inline Images ----------------------
 export async function insertInlineImage(fileInput, urlInput, warningEl, markdownEl, renderCb, debouncePreview) {
-  let file, sanitizedName, blob;
+  let file, blob, sanitizedName;
 
+  // Determine source
   if (fileInput.files.length > 0) {
     file = fileInput.files[0];
-    sanitizedName = sanitizeFilename(file.name);
     blob = file;
+    sanitizedName = sanitizeFilename(file.name);
   } else if (urlInput.value.trim()) {
     try {
       const resp = await fetch(urlInput.value.trim());
@@ -103,16 +123,16 @@ export async function insertInlineImage(fileInput, urlInput, warningEl, markdown
     }
   } else return;
 
-  extraImages.push({ name: sanitizedName, blob });
-
+  // Check size
   const isTooLarge = blob.size > MAX_INLINE_CACHE_SIZE;
+
+  // Add to extraImages
+  extraImages.push({ name: sanitizedName, blob });
 
   // Insert markdown at cursor
   insertAtCursor(markdownEl, `![${altFrom(sanitizedName)}](${sanitizedName})`);
 
-  // Update preview immediately
-  debouncePreview();
-
+  // Cache if small enough
   if (!isTooLarge) {
     const reader = new FileReader();
     reader.onload = e => {
@@ -125,14 +145,16 @@ export async function insertInlineImage(fileInput, urlInput, warningEl, markdown
     warningEl.style.color = 'red';
   }
 
-  // Render inline thumbnails
+  // Update preview
+  debouncePreview();
+
+  // Render thumbnails
   renderCb(MAX_INLINE_CACHE_SIZE);
 
   fileInput.value = '';
   urlInput.value = '';
 }
 
-// ---------------------- Inline Image Rendering ----------------------
 export function renderInlineImages(inlineListEl, warningEl, maxSize = MAX_INLINE_CACHE_SIZE) {
   inlineListEl.innerHTML = '';
   let hasLargeImages = false;
@@ -208,7 +230,6 @@ export function renderInlineImages(inlineListEl, warningEl, maxSize = MAX_INLINE
   }
 }
 
-// ---------------------- Remove Inline Image ----------------------
 export function removeInlineImage(name, inlineListEl, warningEl, maxSize = MAX_INLINE_CACHE_SIZE) {
   const url = extraImageURLs.get(name);
   if (url) URL.revokeObjectURL(url);
