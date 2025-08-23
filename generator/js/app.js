@@ -1,10 +1,9 @@
 import { restoreFormCache, saveFormCache } from './utils.js';
 import {
   getFeaturedImageDataUrl,
-  getFeaturedImageBlob,
   setFeaturedImageDataUrl,
   setFeaturedImageBlob,
-  extraImages,
+  getFeaturedImageBlob,
   extraImageURLs,
   setupFeaturedImage,
   clearFeaturedImage,
@@ -12,6 +11,7 @@ import {
   renderInlineImages,
   rewriteMarkdownForPreview
 } from './images.js';
+import { featuredImageDataUrl, featuredImageBlob, extraImages } from './images.js';
 import { commitToGitHub } from './github.js';
 
 const postForm = document.getElementById('postForm');
@@ -85,6 +85,9 @@ clearAllBtn.addEventListener('click', () => {
   updatePreview();
 
   localStorage.removeItem('markdownEditorCache');
+
+    // Reload the page
+  location.reload();
 });
 
 // ---------------------- Commit Button ----------------------
@@ -145,3 +148,104 @@ window.addEventListener('DOMContentLoaded', () => {
   renderInline();
   updatePreview();
 });
+
+function prependHeader(textarea, level) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.substring(start, end) || '';
+
+  const prefix = '#'.repeat(level) + ' ';
+
+  // Insert prefix at start of each line
+  const lines = selected.split('\n');
+  const newText = lines.map(line => prefix + line).join('\n');
+
+  // Replace selection with new text
+  textarea.value = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
+
+  // Update selection to cover only original text, not the prefix
+  textarea.selectionStart = start + prefix.length;
+  textarea.selectionEnd = start + newText.length;
+
+  textarea.focus();
+  debouncePreview(); // refresh preview
+}
+
+function wrapSelection(textarea, before, after = before) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.substring(start, end);
+  textarea.value = textarea.value.substring(0, start) + before + selected + after + textarea.value.substring(end);
+  textarea.selectionStart = start + before.length;
+  textarea.selectionEnd = end + before.length;
+  textarea.focus();
+  debouncePreview(); // refresh preview
+}
+
+// Bind buttons
+document.getElementById('btnH1').addEventListener('click', () => prependHeader(markdownContent, 1));
+document.getElementById('btnH2').addEventListener('click', () => prependHeader(markdownContent, 2));
+document.getElementById('btnH3').addEventListener('click', () => prependHeader(markdownContent, 3));
+document.getElementById('btnBold').addEventListener('click', () => wrapSelection(markdownContent, '**'));
+document.getElementById('btnItalic').addEventListener('click', () => wrapSelection(markdownContent, '*'));
+document.getElementById('btnUnderline').addEventListener('click', () => wrapSelection(markdownContent, '<u>', '</u>'));
+
+// ---------------------- Form Submit (ZIP) ----------------------
+postForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  localStorage.removeItem('markdownEditorCache');
+
+  const slug = titleInput.value
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9\-]/g, '')
+    .toLowerCase();
+
+  const zip = new JSZip();
+
+  // Create postinfo.json
+  zip.file(
+    'postinfo.json',
+    JSON.stringify({
+      title: titleInput.value,
+      youtubeLink: youtubeLinkInput.value,
+      featuredImage: featuredImageBlob ? `./${featuredImageBlob.name}` : '',
+      date: dateInput.value,
+      content: 'content.md',
+      profile: profileInput.value
+    }, null, 4)
+  );
+
+  // Markdown content
+  zip.file('content.md', markdownContent.value);
+
+  // Featured image
+  if (featuredImageBlob) {
+    console.log('Adding featured image:', featuredImageBlob.name, featuredImageBlob);
+    zip.file(featuredImageBlob.name, featuredImageBlob);
+  }
+
+  // Extra inline images
+  extraImages.forEach(img => {
+    console.log('Adding inline image:', img.name, img.blob);
+    zip.file(img.name, img.blob);
+  });
+
+  // Optional index.html
+  try {
+    const blogIndexResp = await fetch('blog/index.html');
+    if (blogIndexResp.ok) {
+      const indexText = await blogIndexResp.text();
+      zip.file('index.html', indexText);
+    }
+  } catch (err) {
+    console.warn('Skipping blog/index.html fetch', err);
+  }
+
+  // Generate ZIP and trigger download
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${slug}.zip`;
+  link.click();
+});
+

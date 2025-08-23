@@ -19,7 +19,11 @@ export function setFeaturedImageBlob(blob) {
 }
 
 // ---------------------- Inline Images ----------------------
+// images.js
+export let featuredImageDataUrl = null;
+export let featuredImageBlob = null;
 export let extraImages = [];
+
 export const extraImageURLs = new Map();
 
 // ---------------------- Size Limits ----------------------
@@ -34,8 +38,9 @@ export function setupFeaturedImage(fileInput, urlInput, warningEl, updatePreview
 
 async function handleFeaturedFile(file, warningEl, updatePreviewCb) {
   if (!file) return;
-
   const sanitizedName = sanitizeFilename(file.name);
+  featuredImageBlob = new File([file], sanitizedName, { type: file.type });
+
   const reader = new FileReader();
   reader.onload = e => {
     setFeaturedImageDataUrl(e.target.result);
