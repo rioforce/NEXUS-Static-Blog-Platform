@@ -13,10 +13,19 @@
   <form id="postForm">
 
   <!-- ===== Top Fields ===== -->
-  <div class="top-fields">
+<div class="top-fields-container">
+  <div class="top-fields-left">
     <label for="title">Title:</label>
     <input type="text" id="title" required />
 
+    <label for="date">Date:</label>
+    <input type="text" id="date" required />
+
+    <label for="profile">Profile Name:</label>
+    <input type="text" id="profile" value="rioforce" />
+  </div>
+
+  <div class="top-fields-right">
     <label for="youtubeLink">YouTube Link:</label>
     <input type="url" id="youtubeLink" />
 
@@ -28,13 +37,10 @@
     <div class="image-buttons">
       <button type="button" id="clearImage">Clear Featured Image</button>
     </div>
-
-    <label for="date">Date:</label>
-    <input type="text" id="date" required />
-
-    <label for="profile">Profile Name:</label>
-    <input type="text" id="profile" value="rioforce" />
   </div>
+</div>
+
+  <hr id="editor">
 
   <!-- ===== Markdown Editor + Preview ===== -->
   <div class="container">
@@ -51,8 +57,16 @@
 
 
       <textarea id="markdownContent" placeholder="Type your Markdown content here..." required></textarea>
+    </div>
 
-<div id="inlineImageList" class="inline-image-list">
+    <!-- Preview -->
+    <div class="flex-half preview-column">
+      <label>Preview:</label>
+      <div id="preview" class="preview"></div>
+    </div>
+  </div>
+
+  <div id="inlineImageList" class="inline-image-list">
   <!-- JS will insert placeholder or uploaded images here -->
 </div>
 
@@ -64,40 +78,7 @@
   <div id="inlineImageWarning"></div>
 </div>
 
-      <!-- Markdown cheat sheet -->
-      <div class="cheat-sheet">
-        <button type="button" id="toggleCheatSheet">Show Markdown Cheat Sheet</button>
-        <div class="cheat-sheet-content" id="cheatSheet">
-# Headings
-# H1
-## H2
-### H3
-
-**Bold**: **bold**
-*Italic*: *italic*
-***Bold + Italic***: ***text***
-
-Lists:
-- Unordered: - item or * item
-- Ordered: 1. item
-
-Links: [text](url)
-Images: ![alt text](url)
-
-Blockquote: > quote
-Inline code: `code`
-        </div>
-      </div>
-    </div>
-
-    <!-- Preview -->
-    <div class="flex-half preview-column">
-      <label>Preview:</label>
-      <div id="preview" class="preview"></div>
-    </div>
-  </div>
-
-  <hr>
+  <hr id="export">
 
   <!-- ===== GitHub Fields ===== -->
   <div class="github-fields">

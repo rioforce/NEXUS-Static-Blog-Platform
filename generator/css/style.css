@@ -33,13 +33,31 @@ h1, h2, h3, h4, h5, h6 {
 h1 { margin-bottom: 20px; }
 
 form {
-  max-width: 1100px;
+  max-width: 90vw;
   margin: 0 auto;
   padding: 20px;
   background: var(--panel);
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
+
+.top-fields-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap; /* for smaller screens */
+  justify-content: space-between;
+}
+
+.top-fields-left,
+.top-fields-right {
+  flex: 1;
+  min-width: 300px; /* ensure responsive stacking on mobile */
+}
+
+.top-fields-left input,
+.top-fields-right input {
+  width: 100%; /* full width inside each column */}
+
 
 /* Top fields: keep them stacked and centered */
 .top-fields label { text-align: center; }
@@ -190,7 +208,7 @@ button:hover { background-color: var(--primary-hover); }
 /* Editor textarea and preview: same height + rounded + shadow */
 textarea,
 .preview {
-  height: 400px;             /* consistent height */
+  height: 90vh;             /* consistent height */
   border-radius: 10px;
   border: 1px solid var(--border);
   box-shadow: 0 2px 10px rgba(0,0,0,0.05);
@@ -210,7 +228,8 @@ textarea {
 /* Preview column: label above box */
 .preview-column label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 1.6em;
+  margin-top: 0.6em;
   font-weight: bold;
   text-align: center;
 }
@@ -385,6 +404,18 @@ button.generate-btn:hover {
     margin: 5px 0;
   }
 }
+
+@media (max-width: 768px) {
+  .top-fields-container {
+    flex-direction: column;
+  }
+
+  .top-fields-left,
+  .top-fields-right {
+    min-width: 100%;
+  }
+}
+
 
 /* Extra padding at bottom so last content isn't hidden behind button */
 form {
