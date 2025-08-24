@@ -1,6 +1,16 @@
+@font-face {
+      font-family: 'leviwindows'; /* Choose a name for your font */
+      src: url('fonts/leviwindows.ttf') format('truetype'), /* Path to your font file */
+    }
+
+@font-face {
+      font-family: 'geneva'; /* Choose a name for your font */
+      src: url('fonts/geneva_9.ttf') format('truetype'), /* Path to your font file */
+    }
+
 :root {
-  --font-body: "Montserrat", sans-serif;
-  --font-headers: "Ubuntu", var(--font-body);
+  --font-body: "leviwindows", sans-serif;
+  --font-headers: "geneva", var(--font-body);
 }
 
 *,
@@ -9,14 +19,28 @@
   box-sizing: border-box;
 }
 
+a * {
+  cursor: url("cursors/pointer.svg"), pointer;
+}
+
+* {
+  cursor: url("cursors/cursor.svg"), default;
+}
+
 html {
   min-width: 320px;
   scroll-behavior: smooth;
 }
 
 body {
-  background-color: #373740;
-  padding: 0;
+  /* background-color: white; */
+  background-image: radial-gradient(
+    circle at center,
+    rgb(205, 205, 205) 0.5px,
+    transparent 0
+  );
+  background-size: 2px 2px;
+  background-repeat: round;  padding: 0;
   margin: 0;
   font-family: var(--font-body);
   font-size: 18px;
@@ -34,12 +58,12 @@ h4,
 h5,
 h6 {
   font-family: var(--font-headers);
-  font-weight: 300;
+  font-weight: 700;
 }
 
 a {
-  text-decoration: none;
-  color: white;
+  text-decoration: underline;
+  color: black;
 }
 
 a:hover {
@@ -170,16 +194,22 @@ a:hover .img-fullwidth {
 
 /*------NAVIGATION------*/
 nav {
-  position: fixed;
-  width: 100%;
+  position: relative;
+  width: 80vw;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 2em;
   top: 0;
 
-  background-color: black;
+  background-color: #7b78e6;
   color: white;
   z-index: 2;
 
   display: flex;
   justify-content: center;
+
+  border-radius: 10px;
+  border: 1px black solid;
 }
 
 nav>div {
@@ -279,7 +309,7 @@ border: none;
 background-color: rgba(212, 0, 0, 0.82);
 font-size: 1.1em;
 padding: 0.5em;
-border-radius: 15px;
+border-radius: 5px;
 font-weight: 700;
 }
 
@@ -287,17 +317,20 @@ font-weight: 700;
 
 /* --------WATCH PAGE---------*/
 
-#post-page {
-  background-color: #181818;
-  color: white;
-}
-
 #post-page .content {
   display: flex;
   margin-left: auto;
   margin-right: auto;
   width: 80%;
-  margin-top: 5em;
+  margin-top: 2em;
+  background-color: beige;
+  padding-left: 5em;
+  padding-right: 5em;
+  padding-top: 2em;
+  padding-bottom: 2em;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px black solid;
 }
 
 #post-main {
@@ -313,33 +346,54 @@ font-weight: 700;
 #film-link {
   text-align: center;
   overflow: hidden;
+box-shadow: 5px 5px 0 black;
+border: 1px white dotted;
+}
+
+#post-meta {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  max-width: 20em;
+  margin: auto
+;}
+
+#post-title {
+text-align: center;
+margin: 0;
 }
 
 #post-date {
   color: #808080;
   cursor: default;
-}
-
-#watch-main hr {
-  margin-left: 0;
-  width: 100%;
-  color: #272727;
+  text-align: center;
+  margin: 0;
 }
 
 #blog-profile {
-  display: flex;
-  align-items: center;
+text-align: center;
+padding-right: 2em;
+padding-top: 1em;
 }
 
 #profile-avatar {
-  border-radius: 100%;
+  border-radius: 6px;
   width: 50px;
   height: 50px !important;
 }
 
 #profile-username {
-  padding-left: 1em;
   font-weight: 700;
+  margin: 0;
+}
+
+hr {
+  margin-left: 0;
+  width: 80%;
+  border-top: 1px dotted gray;
+  color: transparent;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #article-body {
@@ -351,8 +405,9 @@ font-weight: 700;
 }
 
 #post-recs {
-	margin-top: -1em;
-  width: 30%;
+  display: flex;
+  text-align: center;
+  justify-content: center;
 }
 
 #read-next {
@@ -361,9 +416,12 @@ font-weight: 700;
 }
 
 .rec-vid {
-  display: flex;
-  padding-top: 1em;
+  padding:1em;
   font-size: 14px;
+  border: 1px dotted lightgray;
+  margin: 1em;
+  max-width: 15em;
+  background-color: white;
 }
 
 .rec-vid a {
